@@ -30,3 +30,22 @@ class Dreamnet50(torch.nn.Module):
                         out_activations[name + '_' +
                                         str(out_idxs)] = x[:, out_idxs]
         return out_activations
+
+class Googledream(Dreamnet50):
+    def __init__(self, model):
+        super().__init__(model)
+    
+    def forward(self, x, out_info):
+        out_activations = {}
+        for (name, layer) in self.layers.items():
+            if name == 'dropout':
+                x = x.view(x.size(0), -1)
+            x = layer(x)
+            for (out_name, out_idxs) in out_info:
+                if name == out_name:
+                    if out_idxs == None:
+                        out_activations[name] = x
+                    else:
+                        out_activations[name + '_' +
+                                        str(out_idxs)] = x[:, out_idxs]
+        return out_activations
