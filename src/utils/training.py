@@ -1,6 +1,6 @@
 from IPython.display import clear_output
 
-import pathlib as Path
+from pathlib import Path
 import time
 import copy
 
@@ -43,7 +43,7 @@ class EarlyStopping():
 
 def fit(model, data_loaders, dataset_sizes, criterion,
         optimizer, early_stopping, scheduler=None,
-        num_epochs=100, device="cuda:0", plot=False):
+        num_epochs=100, device="cuda:0", plot=True):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -92,7 +92,7 @@ def fit(model, data_loaders, dataset_sizes, criterion,
             epoch_acc = (running_corrects.double()).item() / \
                 dataset_sizes[phase]
             if phase == 'train':
-                if scheduler != None:
+                if scheduler is not None:
                     scheduler.step()
                 train_loss.append(epoch_loss)
                 train_acc.append(epoch_acc)
@@ -112,7 +112,7 @@ def fit(model, data_loaders, dataset_sizes, criterion,
             'Val', val_loss[-1], val_acc[-1]))
         print()
         if plot == True:
-            current_accs = np.array(train_acc[:epoch], val_acc[:epoch])
+            current_accs = np.array([train_acc[:epoch], val_acc[:epoch]])
             systems = np.array([[epochs, current_acc]
                                for current_acc in current_accs])
             plot_labels = ['Training', 'Validation']
@@ -161,7 +161,7 @@ def load_model(model, name, optim=False, get_dataloaders=False,
             path + '_dataloaders.pt', map_location=device)
         output.append(data_loaders)
     if get_train_metrics:
-        metrics = np.load(path + '_metrics.npy')
+        metrics = np.load(path + '_train_metrics.npy')
         output.append(metrics)
     if get_test_scores:
         test_scores = np.load(path + '_test_scores.npy')
@@ -175,13 +175,13 @@ def save_model(model, name='model_0', optim=None,
     Path("models").mkdir(parents=True, exist_ok=True)
     path = 'models/' + name
     torch.save(model.state_dict(), path + '_parameters.pt')
-    if optim != None:
+    if optim is not None:
         torch.save(optim.state_dict(), path + '_optim.pt')
-    if dataloaders != None:
+    if dataloaders is not None:
         torch.torch.save(dataloaders, path + '_dataloaders.pt')
-    if train_metrics != None:
+    if train_metrics is not None:
         np.save(path + '_train_metrics.npy', train_metrics)
-    if test_scores != None:
+    if test_scores is not None:
         np.save(path + '_test_scores.npy', test_scores)
 
 

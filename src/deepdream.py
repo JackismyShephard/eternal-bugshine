@@ -51,13 +51,13 @@ def dreamspace(image, model, config):
 
             scaled_tensor = dreamt_tensor
         tensor = output_adapter(dreamt_tensor)
-    if config['img_path'] != None:
+    if config['img_path'] is not None:
         clear_output(wait=True)
         show_tensor(output_adapter(output_tensors[-1]),
                     config['mean'], config['std'],
                     save_path=config['img_path'], dpi=config['dpi'],
                     figsize=config['figsize'], show_axis='off')
-    if config['video_path'] != None:
+    if config['video_path'] is not None:
         Path('videos/temp/').mkdir(parents=True, exist_ok=True)
         with imageio.get_writer(config['video_path'], mode='I') as writer:
             for i, tensor in enumerate(output_tensors):

@@ -34,7 +34,7 @@ def multiplot(systems, x_axis, y_axis, labels, name=None,
         plt.title(title, pad=20)
     plt.legend()
     plt.grid()
-    if name != None:
+    if name is not None:
         Path("figures").mkdir(parents=True, exist_ok=True)
         plt.savefig('figures/'+name,  bbox_inches='tight',
                     facecolor='w', dpi=dpi)

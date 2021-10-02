@@ -1,6 +1,6 @@
 import os
 import glob
-import pathlib as Path
+from pathlib import Path
 import multiprocessing as mp
 import ssl
 
