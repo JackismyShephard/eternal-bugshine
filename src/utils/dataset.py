@@ -47,11 +47,11 @@ def split_dataset(dataset, train_ratio, val_ratio):
     return train_data, val_data, test_data, dataset_sizes
 
 
-def dataset_stats(data_set, load_mean_std=True, num_workers=mp.cpu_count(),
-                  path='./models/beetle_mean_std.pt', batch_size=32):
+def dataset_stats(data_set, load=True, num_workers=mp.cpu_count(),
+                  path='models/beetle_mean_std.npy', batch_size=32):
 
-    if load_mean_std:
-        mean, std = torch.load(path)
+    if load:
+        mean, std = np.load(path)
 
     else:
         loader = torch.utils.data.DataLoader(
@@ -74,10 +74,10 @@ def dataset_stats(data_set, load_mean_std=True, num_workers=mp.cpu_count(),
             snd_moment = (cnt * snd_moment + sum_of_square) / (cnt + nb_pixels)
 
             cnt += nb_pixels
-        mean = fst_moment
-        std = torch.sqrt(snd_moment - fst_moment ** 2)
+        mean = fst_moment.cpu().detach().numpy()
+        std = torch.sqrt(snd_moment - fst_moment ** 2).cpu().detach().numpy()
         Path("models").mkdir(parents=True, exist_ok=True)
-        torch.save(torch.stack((mean, std)), path)
+        np.save(path, np.stack((mean, std)))
     return mean, std
 
 class TransformsDataset(Dataset):

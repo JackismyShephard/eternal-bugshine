@@ -2,36 +2,46 @@ from IPython.display import clear_output
 
 import os
 from pathlib import Path
+import collections
 
 import numpy as np
-import matplotlib.pyplot as plt
 import imageio
-
 import torch
-from torchvision import transforms
-
+import cv2 as cv
 
 from src.deepdream_aux import scale_level, random_shift, output_adapter, CascadeGaussianSmoothing
-
 from src.utils.visual import show_tensor
 
-def dreamspace(image, model, config):
+
+def dreamspace(img, model, config):
     output_tensors = []
-    (w, h) = image.size
-    start_size = (h, w)
+
+    if isinstance(config['target_shape'], int):
+        current_height, current_width = img.shape[:2]
+        new_height = int(current_height *
+                         (config['target_shape'] / current_width))
+        img = cv.resize(img, (config['target_shape'], new_height),
+                        interpolation=cv.INTER_CUBIC)
+
+    elif isinstance(config['target_shape'], collections.abc.Sequence):
+        img = cv.resize(img, (config['target_shape'][1], config['target_shape'][0]),
+                        interpolation=cv.INTER_CUBIC)
+
+    img = img.astype(np.float32)  # convert from uint8 to float32
+    img /= 255.0  # get to [0, 1] range
+
     if config['use_noise'] == 'uniform':
         (h, w) = config['noise_shape']
-        image = np.random.uniform(size=(h, w, 3)).astype(np.float32)
+        img = np.random.uniform(size=(h, w, 3)).astype(np.float32)
     elif config['use_noise'] == 'gaussian':
         (h, w) = config['noise_shape']
-        image = np.random.normal(size=(h, w, 3)).astype(np.float32)
-    tensorfy = transforms.ToTensor()
-    normalize = transforms.Normalize(config['mean'], config['std'])
-    dream_transform = transforms.Compose([tensorfy, normalize])
-    tensor = dream_transform(image)
+        img = np.random.normal(size=(h, w, 3)).astype(np.float32)
+
+    img = (img - config['mean']) / config['std']
+    start_size = img.shape[:-1]  # save initial height and width
 
     for level in range(config['levels']):
-        scaled_tensor = scale_level(tensor, start_size, level,
+        scaled_tensor = scale_level(img, start_size, level,
                                     config['ratio'], config['levels'],  config['device'])
         for i in range(config['num_iters']):
             if config['shift'] == True:
@@ -51,6 +61,8 @@ def dreamspace(image, model, config):
 
             scaled_tensor = dreamt_tensor
         tensor = output_adapter(dreamt_tensor)
+        img = tensor.numpy().transpose((1, 2, 0))
+
     if config['img_path'] is not None:
         clear_output(wait=True)
         show_tensor(output_adapter(output_tensors[-1]),

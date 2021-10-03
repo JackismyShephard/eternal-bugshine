@@ -2,6 +2,7 @@ import numbers
 import math
 
 import numpy as np
+import cv2 as cv
 
 import torch
 import torch.nn as nn
@@ -10,25 +11,25 @@ from torchvision import transforms
 
 from src.utils.headers import IMAGENET_MEAN, IMAGENET_STD
 
-def input_adapter(tensor, device='cuda:0'):
-    tensor = tensor.to(device).unsqueeze(0)
+
+def input_adapter(img, device='cuda:0'):
+    tensor = transforms.ToTensor()(img).to(device).unsqueeze(0)
     tensor.requires_grad = True
     return tensor
+
 
 def output_adapter(tensor):
     return tensor.to('cpu').detach().squeeze(0)
 
 
-def scale_level(tensor, start_size, level, ratio=1.8,
-                levels=4, device = 'cuda:0'):
+def scale_level(img, start_size, level, ratio=1.8,
+                levels=4, device='cuda:0'):
     exponent = level - levels + 1
-    h, w = np.int32(np.float32(start_size) * (ratio ** exponent))
-    # we resize tensors directly instead of PIL images.
-    # The difference here is that resizing on PIL images does automatic antialiasing
-    # Note that the cv.resize used elsewhere does not use antialiasing
-    scale_tensor = transforms.Resize((h, w))(tensor)
-    scale_tensor = input_adapter(scale_tensor, device)
-    return scale_tensor
+    h, w = np.round(np.float32(start_size) *
+                    (ratio ** exponent)).astype(np.int32)
+    scaled_img = cv.resize(img, (w, h))
+    scaled_tensor = input_adapter(scaled_img, device)
+    return scaled_tensor
 
 
 def scale_space(image, ratio=1.8, levels=4, mean=IMAGENET_MEAN, 
@@ -43,6 +44,7 @@ def scale_space(image, ratio=1.8, levels=4, mean=IMAGENET_MEAN,
         scaled_tensor = scale_level(tensor, (y, x), level, ratio, device=device)
         scaled_tensors.append(scaled_tensor)
     return scaled_tensors
+
 
 def random_shift(tensor, h_shift, w_shift, undo=False):
     if undo:
@@ -108,7 +110,7 @@ class CascadeGaussianSmoothing(nn.Module):
 
     def forward(self, input):
         input = F.pad(input, [self.pad, self.pad,
-                      self.pad, self.pad], mode='reflect')
+                              self.pad, self.pad], mode='reflect')
 
         # Apply Gaussian kernels depthwise over the input (hence groups equals the number of input channels)
         # shape = (1, 3, H, W) -> (1, 3, H, W)
