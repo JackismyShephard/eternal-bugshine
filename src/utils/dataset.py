@@ -95,7 +95,7 @@ class TransformsDataset(Dataset):
         return len(self.subset)
 
 def augmentation_1(start_height, start_width, scale, theta, mean, std):
-    img_height_crop, img_width_crop = int(start_height * scale), int(start_width)
+    img_height_crop, img_width_crop = int(start_height * scale), int(start_width * scale)
     resize = transforms.Resize((start_height, start_width))
     center_crop = transforms.CenterCrop((img_height_crop, img_width_crop))
 
@@ -103,7 +103,7 @@ def augmentation_1(start_height, start_width, scale, theta, mean, std):
     random_crop = transforms.RandomCrop((img_height_crop, img_width_crop))
     vertical_flip = transforms.RandomVerticalFlip(0.5)
 
-    tensorfy = transforms.ToTensor
+    tensorfy = transforms.ToTensor()
 
     normalize = transforms.Normalize(mean, std)
 
