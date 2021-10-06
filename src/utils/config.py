@@ -46,7 +46,11 @@ def get_new_config(param_dict, input_img_name,
 
     config = copy.deepcopy(DREAM_CONFIG)
     for (name, param) in param_dict.items():
-        output_img_name += ('_' + name + '_' + str(param))
+        if name == 'model':
+            param_str = type(param).__name__
+        else:
+            param_str = str(param)
+        output_img_name += ('_' + name + '_' + param_str)
         config[name] = param
 
     if root_img is not None:
