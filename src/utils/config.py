@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+from torchvision import  models
 
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
@@ -9,7 +10,10 @@ BEETLENET_STD = np.array([0.28980458, 0.32252666, 0.3240354], dtype=np.float32)
 
 BEETLENET_PATH = 'data/beetles/images/'
 
+RESNET50 = models.resnet50(pretrained=True)
+
 DREAM_CONFIG = {
+    'model' : RESNET50,
     'ratio': 1.8,
     'levels': 4,
     'num_iters': 10,
@@ -29,7 +33,7 @@ DREAM_CONFIG = {
     'show': True,
     'noise': None,
     'figsize': (15, 15),
-    'device': 'cuda:0',
+    'device': 'cuda',
     'save_interval': 5,
     'output_img_path': None,
     'dpi': 200,

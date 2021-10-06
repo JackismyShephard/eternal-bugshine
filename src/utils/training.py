@@ -2,6 +2,7 @@ from IPython.display import clear_output
 
 import time
 import copy
+import os
 
 import numpy as np
 import torch
@@ -41,13 +42,13 @@ class EarlyStopping():
 
 
 def fit(model, data_loaders, dataset_sizes, criterion,
-        optimizer, early_stopping, scheduler=None,
-        num_epochs=100, device="cuda:0", plot=True):
+        optimizer, early_stopping, scheduler=None, clear= 'notebook',
+        num_epochs=100, device="cuda", plot=True, metrics_path = None):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
-
+    metrics = []
     train_loss, train_acc = [], []
     val_loss, val_acc = [], []
     epochs = []
@@ -103,7 +104,10 @@ def fit(model, data_loaders, dataset_sizes, criterion,
                         best_acc = epoch_acc
                         best_model_wts = copy.deepcopy(model.state_dict())
                     early_stopping(epoch_loss)
-            clear_output(wait=True)
+            if clear == 'notebook':
+                clear_output(wait=True)
+            elif clear == 'terminal':
+                os.system('cls' if os.name == 'nt' else 'clear')
             print('Epoch {}/{}'.format(epoch, num_epochs))
             print('-' * 10)
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(
@@ -112,11 +116,9 @@ def fit(model, data_loaders, dataset_sizes, criterion,
                 'Val', val_loss[-1], val_acc[-1]))
             print()
             if plot == True:
-                current_accs = np.array([train_acc[:epoch], val_acc[:epoch]])
-                systems = np.array([[epochs, current_acc]
-                                for current_acc in current_accs])
-                plot_labels = ['Training', 'Validation']
-                multiplot(systems, 'Epoch', 'Accuracy', plot_labels)
+                metrics = np.array([epochs, train_loss, train_acc,
+                                    val_loss, val_acc])
+                plot_metrics(metrics, metrics_path)
             if early_stopping.early_stop:
                 break
     except KeyboardInterrupt:
@@ -128,12 +130,10 @@ def fit(model, data_loaders, dataset_sizes, criterion,
     print('Best val Acc: {:4f}'.format(best_acc))
     # load best model weights
     model.load_state_dict(best_model_wts)
-    metrics = np.array([epochs, train_loss, train_acc,
-                        val_loss, val_acc]).T
     
     return metrics
 
-def test_model(model, test_loaders, device="cuda:0"):
+def test_model(model, test_loaders, device="cuda"):
     model.eval()
     correct = 0
     total = 0
@@ -152,7 +152,7 @@ def test_model(model, test_loaders, device="cuda:0"):
 
 def load_model(model, path, optim=False, get_dataloaders=False,
                get_train_metrics=False, get_test_scores=False,
-               device="cuda:0"):
+               device="cuda"):
     output = []
     model.load_state_dict(torch.load(
         path + '_parameters.pt', map_location=device))
@@ -186,10 +186,10 @@ def save_model(model, path, optim=None,
         np.save(path + '_test_scores.npy', test_scores)
 
 
-def plot_metrics(metrics, save_path='figures/resnet50'):
-    epochs = metrics[:, 0]
-    remaining_metrics = metrics[:, 1:]
-    systems = np.array([[epochs, metric] for metric in remaining_metrics.T])
+def plot_metrics(metrics, save_path=None):
+    epochs = metrics[0]
+    remaining_metrics = metrics[1:]
+    systems = np.array([[epochs, metric] for metric in remaining_metrics])
     labels = ['Training', 'Validation']
     multiplot(systems[[0, 2]], 'Epoch', 'Loss',
               labels, save_path + '_loss_comparison.pdf')

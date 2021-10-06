@@ -3,6 +3,8 @@ import copy
 import torch.nn as nn
 
 class Dreamnet50(torch.nn.Module):
+    def __str__(self):
+        return 'dreamnet50'
     def __init__(self, model):
         super().__init__()
         self.model = copy.deepcopy(model)
@@ -32,6 +34,9 @@ class Dreamnet50(torch.nn.Module):
         return out_activations
 
 class Googledream(Dreamnet50):
+    def __str__(self):
+        return 'googledream'
+
     def __init__(self, model):
         super().__init__(model)
     

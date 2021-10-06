@@ -12,7 +12,7 @@ import cv2 as cv
 from .utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift
 
 
-def dream_process(model, config, img = None):
+def dream_process(config, img = None):
     if img is None:
         img = get_noise_image(config['noise'], config['target_shape'])
 
@@ -23,7 +23,7 @@ def dream_process(model, config, img = None):
         img /= 255.0  # get to [0, 1] range
     
     img = (img - config['mean']) / config['std']
-    output_images = dreamspace(img, model, config)
+    output_images = dreamspace(img, config['model'], config)
 
     if config['video_path'] is not None:
         make_video(output_images, config['target_shape'], config['video_path'])
@@ -64,7 +64,7 @@ def dreamspace(img, model, config):
 
 
 def scale_level(img, start_size, level, ratio=1.8,
-                levels=4, device='cuda:0'):
+                levels=4, device='cuda'):
     exponent = level - levels + 1
     h, w = np.round(np.float32(start_size) *
                     (ratio ** exponent)).astype(np.int32)
@@ -139,7 +139,7 @@ class CascadeGaussianSmoothing(nn.Module):
 
     """
 
-    def __init__(self, kernel_size, sigma, device='cuda:0'):
+    def __init__(self, kernel_size, sigma, device='cuda'):
         super().__init__()
 
         if isinstance(kernel_size, numbers.Number):

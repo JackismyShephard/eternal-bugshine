@@ -63,7 +63,7 @@ def postprocess_image(img, mean=BEETLENET_MEAN, std=BEETLENET_STD):
     return img
 
 
-def image_to_tensor(img, device='cuda:0', requires_grad=False):
+def image_to_tensor(img, device='cuda', requires_grad=False):
     tensor = transforms.ToTensor()(img).to(device).unsqueeze(0)
     tensor.requires_grad = requires_grad
     return tensor
