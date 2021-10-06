@@ -1,88 +1,76 @@
 from IPython.display import clear_output
 
-import os
-from pathlib import Path
-import collections
+import numbers
+import math
 
 import numpy as np
-import imageio
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import cv2 as cv
 
-from src.deepdream_aux import scale_level, random_shift, output_adapter, CascadeGaussianSmoothing
-from src.utils.visual import show_tensor
+from src.utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift
 
+
+def dream_process(model, config, img = None):
+    if img is None:
+        img = get_noise_image(config['noise'], config['target_shape'])
+
+    elif isinstance(img, str):
+        img = cv.imread(img)[:, :, ::-1]
+        img = reshape_image(img, config['target_shape'])
+        img = img.astype(np.float32)  # convert from uint8 to float32
+        img /= 255.0  # get to [0, 1] range
+    
+    img = (img - config['mean']) / config['std']
+    output_images = dreamspace(img, model, config)
+
+    if config['video_path'] is not None:
+        make_video(output_images, config['target_shape'], config['video_path'])
+    
+    return output_images
 
 def dreamspace(img, model, config):
-    output_tensors = []
-
-    if isinstance(config['target_shape'], int):
-        current_height, current_width = img.shape[:2]
-        new_height = int(current_height *
-                         (config['target_shape'] / current_width))
-        img = cv.resize(img, (config['target_shape'], new_height),
-                        interpolation=cv.INTER_CUBIC)
-
-    elif isinstance(config['target_shape'], collections.abc.Sequence):
-        img = cv.resize(img, (config['target_shape'][1], config['target_shape'][0]),
-                        interpolation=cv.INTER_CUBIC)
-
-    img = img.astype(np.float32)  # convert from uint8 to float32
-    img /= 255.0  # get to [0, 1] range
-
-    if config['use_noise'] == 'uniform':
-        (h, w) = config['noise_shape']
-        img = np.random.uniform(size=(h, w, 3)).astype(np.float32)
-    elif config['use_noise'] == 'gaussian':
-        (h, w) = config['noise_shape']
-        img = np.random.normal(size=(h, w, 3)).astype(np.float32)
-
-    img = (img - config['mean']) / config['std']
+    output_images = []
     start_size = img.shape[:-1]  # save initial height and width
 
     for level in range(config['levels']):
         scaled_tensor = scale_level(img, start_size, level,
                                     config['ratio'], config['levels'],  config['device'])
+        
+        if level == 3:
+            return output_images
+
         for i in range(config['num_iters']):
-            if config['shift'] == True:
-                h_shift, w_shift = np.random.randint(
-                    -config['shift_size'], config['shift_size'] + 1, 2)
-                scaled_tensor = random_shift(scaled_tensor, h_shift, w_shift)
-            dreamt_tensor = dream_ascent(scaled_tensor, model, i, config)
-            if config['shift'] == True:
-                dreamt_tensor = random_shift(dreamt_tensor, h_shift,
-                                             w_shift, undo=True)
+            h_shift, w_shift = np.random.randint(-config['shift_size'], config['shift_size'] + 1, 2)
+            shifted_tensor = random_shift(scaled_tensor, h_shift, w_shift, requires_grad = True)
+            dreamt_tensor = dream_ascent(shifted_tensor, model, i, config)
+            deshifted_tensor = random_shift(dreamt_tensor, h_shift,
+                                             w_shift, undo=True, requires_grad = True)
+
+            img = tensor_to_image(deshifted_tensor)
+            output_image = postprocess_image(img, config['mean'],config['std'])
             if config['show'] == True:
                 clear_output(wait=True)
-                show_tensor(output_adapter(dreamt_tensor), config['mean'],
-                            config['std'], figsize=config['figsize'], show_axis='off')
+                show_img(output_image, figsize=config['figsize'], show_axis='off', 
+                            dpi=config['dpi'],save_path=config['output_img_path'])
+
             if (i % config['save_interval']) == 0:
-                output_tensors.append(dreamt_tensor)
+                output_images.append(output_image)
 
-            scaled_tensor = dreamt_tensor
-        tensor = output_adapter(dreamt_tensor)
-        img = tensor.numpy().transpose((1, 2, 0))
+            scaled_tensor = deshifted_tensor
+    
+    return output_images
 
-    if config['img_path'] is not None:
-        clear_output(wait=True)
-        show_tensor(output_adapter(output_tensors[-1]),
-                    config['mean'], config['std'],
-                    save_path=config['img_path'], dpi=config['dpi'],
-                    figsize=config['figsize'], show_axis='off')
-    if config['video_path'] is not None:
-        Path('videos/temp/').mkdir(parents=True, exist_ok=True)
-        with imageio.get_writer(config['video_path'], mode='I') as writer:
-            for i, tensor in enumerate(output_tensors):
-                clear_output(wait=True)
-                show_tensor(output_adapter(tensor), config['mean'], config['std'],
-                            save_path='videos/temp/'+str(i) + '.jpg',
-                            dpi=200, close=True, figsize=config['figsize'], show_axis='off')
-                image = imageio.imread('videos/temp/'+str(i) + '.jpg')
-                writer.append_data(image)
-                os.remove('videos/temp/'+str(i) + '.jpg')
-        writer.close()
-    return output_tensors
 
+def scale_level(img, start_size, level, ratio=1.8,
+                levels=4, device='cuda:0'):
+    exponent = level - levels + 1
+    h, w = np.round(np.float32(start_size) *
+                    (ratio ** exponent)).astype(np.int32)
+    scaled_img = cv.resize(img, (w, h))
+    scaled_tensor = image_to_tensor(scaled_img, device, requires_grad=True)
+    return scaled_tensor
 
 def dream_ascent(tensor, model, iter, config):
     ## get activations
@@ -91,14 +79,14 @@ def dream_ascent(tensor, model, iter, config):
     losses = []
     for layer_activation in activations.values():
         if config['loss_type'] == 'norm':
-            loss = torch.linalg.norm(layer_activation)
-        elif config['loss_type'] == 'mean_red':
-            loss = torch.mean(layer_activation)
+            loss_part = torch.linalg.norm(layer_activation)
+        elif config['loss_type'] == 'mean':
+            loss_part = torch.mean(layer_activation)
         else:
             MSE = torch.nn.MSELoss(reduction='mean')
             zeros = torch.zeros_like(layer_activation)
             loss = MSE(layer_activation, zeros)
-        losses.append(loss)
+        losses.append(loss_part)
     if config['loss_red'] == 'mean':
         loss = torch.mean(torch.stack(losses))
     else:
@@ -118,18 +106,90 @@ def dream_ascent(tensor, model, iter, config):
     ### normalization of gradient
     g_std = torch.std(smooth_grad)
     g_mean = torch.mean(smooth_grad)
-    smooth_grad = smooth_grad - g_mean
-    smooth_grad = smooth_grad / g_std
+    if config['norm_type'] == 'standardize':
+        smooth_grad = smooth_grad - g_mean
+        smooth_grad = smooth_grad / g_std
+    else:
+        smooth_grad /= torch.abs(g_mean + config['eps'])
+
     ### gradient update ####
     tensor.data += config['lr'] * smooth_grad
     tensor.grad.data.zero_()
     ### clamp gradient to avoid it diverging. vanishing/exploding gradient phenomenon?
-    if config['clamp_type'] == 'norm':
+    if config['clamp_type'] == 'standardize':
         image_min = torch.tensor(
             (-config['mean'] / config['std']).reshape(1, -1, 1, 1)).to(config['device'])
         image_max = torch.tensor(
             ((1 - config['mean']) / config['std']).reshape(1, -1, 1, 1)).to(config['device'])
+    elif config['clamp_type'] == 'unit':
+        image_min, image_max = 0, 1
     else:
         image_min, image_max = -1, 1
     tensor.data = torch.clip(tensor, image_min, image_max)
     return tensor
+
+
+class CascadeGaussianSmoothing(nn.Module):
+    """
+    Apply gaussian smoothing separately for each channel (depthwise convolution).
+
+    Arguments:
+        kernel_size (int, sequence): Size of the gaussian kernel.
+        sigma (float, sequence): Standard deviation of the gaussian kernel.
+
+    """
+
+    def __init__(self, kernel_size, sigma, device='cuda:0'):
+        super().__init__()
+
+        if isinstance(kernel_size, numbers.Number):
+            kernel_size = [kernel_size, kernel_size]
+
+        # std multipliers, hardcoded to use 3 different Gaussian kernels
+        cascade_coefficients = [0.5, 1.0, 2.0]
+        sigmas = [[coeff * sigma, coeff * sigma]
+                  for coeff in cascade_coefficients]  # isotropic Gaussian
+
+        # assure we have the same spatial resolution
+        self.pad = int(kernel_size[0] / 2)
+
+        # The gaussian kernel is the product of the gaussian function of each dimension.
+        kernels = []
+        meshgrids = torch.meshgrid(
+            [torch.arange(size, dtype=torch.float32) for size in kernel_size])
+        for sigma in sigmas:
+            kernel = torch.ones_like(meshgrids[0])
+            for size_1d, std_1d, grid in zip(kernel_size, sigma, meshgrids):
+                mean = (size_1d - 1) / 2
+                kernel *= 1 / (std_1d * math.sqrt(2 * math.pi)) * \
+                    torch.exp(-((grid - mean) / std_1d) ** 2 / 2)
+            kernels.append(kernel)
+
+        gaussian_kernels = []
+        for kernel in kernels:
+            # Normalize - make sure sum of values in gaussian kernel equals 1.
+            kernel = kernel / torch.sum(kernel)
+            # Reshape to depthwise convolutional weight
+            kernel = kernel.view(1, 1, *kernel.shape)
+            kernel = kernel.repeat(3, 1, 1, 1)
+            kernel = kernel.to(device)
+
+            gaussian_kernels.append(kernel)
+
+        self.weight1 = gaussian_kernels[0]
+        self.weight2 = gaussian_kernels[1]
+        self.weight3 = gaussian_kernels[2]
+        self.conv = F.conv2d
+
+    def forward(self, input):
+        input = F.pad(input, [self.pad, self.pad,
+                              self.pad, self.pad], mode='reflect')
+
+        # Apply Gaussian kernels depthwise over the input (hence groups equals the number of input channels)
+        # shape = (1, 3, H, W) -> (1, 3, H, W)
+        num_in_channels = input.shape[1]
+        grad1 = self.conv(input, weight=self.weight1, groups=num_in_channels)
+        grad2 = self.conv(input, weight=self.weight2, groups=num_in_channels)
+        grad3 = self.conv(input, weight=self.weight3, groups=num_in_channels)
+
+        return (grad1 + grad2 + grad3) / 3

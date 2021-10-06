@@ -1,6 +1,5 @@
 from IPython.display import clear_output
 
-from pathlib import Path
 import time
 import copy
 
@@ -53,72 +52,76 @@ def fit(model, data_loaders, dataset_sizes, criterion,
     val_loss, val_acc = [], []
     epochs = []
 
-    for epoch in np.arange(num_epochs) + 1:
-        epochs.append(epoch)
-        # Each epoch has a training and validation phase
-        for phase in ['train', 'val']:
-            if phase == 'train':
-                model.train()  # Set model to training mode
-            else:
-                model.eval()   # Set model to evaluate mode
+    try:
+        for epoch in np.arange(num_epochs) + 1:
+            epochs.append(epoch)
+            # Each epoch has a training and validation phase
+            for phase in ['train', 'val']:
+                if phase == 'train':
+                    model.train()  # Set model to training mode
+                else:
+                    model.eval()   # Set model to evaluate mode
 
-            running_loss = 0.0
-            running_corrects = 0
+                running_loss = 0.0
+                running_corrects = 0
 
-            # Iterate over data.
-            for inputs, labels in data_loaders[phase]:
-                inputs = inputs.to(device)
-                labels = labels.to(device)
+                # Iterate over data.
+                for inputs, labels in data_loaders[phase]:
+                    inputs = inputs.to(device)
+                    labels = labels.to(device)
 
-                # zero the parameter gradients
-                optimizer.zero_grad()
+                    # zero the parameter gradients
+                    optimizer.zero_grad()
 
-                # forward
-                # track history if only in train
-                with torch.set_grad_enabled(phase == 'train'):
-                    outputs = model(inputs)
-                    _, preds = torch.max(outputs, 1)
-                    loss = criterion(outputs, labels)
+                    # forward
+                    # track history if only in train
+                    with torch.set_grad_enabled(phase == 'train'):
+                        outputs = model(inputs)
+                        _, preds = torch.max(outputs, 1)
+                        loss = criterion(outputs, labels)
 
-                    # backward + optimize only if in training phase
-                    if phase == 'train':
-                        loss.backward()
-                        optimizer.step()
+                        # backward + optimize only if in training phase
+                        if phase == 'train':
+                            loss.backward()
+                            optimizer.step()
 
-                # statistics
-                running_loss += loss.item() * inputs.size(0)
-                running_corrects += torch.sum(preds == labels.data)
-            epoch_loss = running_loss / dataset_sizes[phase]
-            epoch_acc = (running_corrects.double()).item() / \
-                dataset_sizes[phase]
-            if phase == 'train':
-                if scheduler is not None:
-                    scheduler.step()
-                train_loss.append(epoch_loss)
-                train_acc.append(epoch_acc)
-            else:
-                val_loss.append(epoch_loss)
-                val_acc.append(epoch_acc)
-                if epoch_acc > best_acc:
-                    best_acc = epoch_acc
-                    best_model_wts = copy.deepcopy(model.state_dict())
-                early_stopping(epoch_loss)
-        clear_output(wait=True)
-        print('Epoch {}/{}'.format(epoch, num_epochs))
-        print('-' * 10)
-        print('{} Loss: {:.4f} Acc: {:.4f}'.format(
-            'Train', train_loss[-1], train_acc[-1]))
-        print('{} Loss: {:.4f} Acc: {:.4f}'.format(
-            'Val', val_loss[-1], val_acc[-1]))
-        print()
-        if plot == True:
-            current_accs = np.array([train_acc[:epoch], val_acc[:epoch]])
-            systems = np.array([[epochs, current_acc]
-                               for current_acc in current_accs])
-            plot_labels = ['Training', 'Validation']
-            multiplot(systems, 'Epoch', 'Accuracy', plot_labels)
-        if early_stopping.early_stop:
-            break
+                    # statistics
+                    running_loss += loss.item() * inputs.size(0)
+                    running_corrects += torch.sum(preds == labels.data)
+                epoch_loss = running_loss / dataset_sizes[phase]
+                epoch_acc = (running_corrects.double()).item() / \
+                    dataset_sizes[phase]
+                if phase == 'train':
+                    if scheduler is not None:
+                        scheduler.step()
+                    train_loss.append(epoch_loss)
+                    train_acc.append(epoch_acc)
+                else:
+                    val_loss.append(epoch_loss)
+                    val_acc.append(epoch_acc)
+                    if epoch_acc > best_acc:
+                        best_acc = epoch_acc
+                        best_model_wts = copy.deepcopy(model.state_dict())
+                    early_stopping(epoch_loss)
+            clear_output(wait=True)
+            print('Epoch {}/{}'.format(epoch, num_epochs))
+            print('-' * 10)
+            print('{} Loss: {:.4f} Acc: {:.4f}'.format(
+                'Train', train_loss[-1], train_acc[-1]))
+            print('{} Loss: {:.4f} Acc: {:.4f}'.format(
+                'Val', val_loss[-1], val_acc[-1]))
+            print()
+            if plot == True:
+                current_accs = np.array([train_acc[:epoch], val_acc[:epoch]])
+                systems = np.array([[epochs, current_acc]
+                                for current_acc in current_accs])
+                plot_labels = ['Training', 'Validation']
+                multiplot(systems, 'Epoch', 'Accuracy', plot_labels)
+            if early_stopping.early_stop:
+                break
+    except KeyboardInterrupt:
+        print("Training interrupted.")
+        pass
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
@@ -127,6 +130,7 @@ def fit(model, data_loaders, dataset_sizes, criterion,
     model.load_state_dict(best_model_wts)
     metrics = np.array([epochs, train_loss, train_acc,
                         val_loss, val_acc]).T
+    
     return metrics
 
 def test_model(model, test_loaders, device="cuda:0"):
@@ -146,11 +150,10 @@ def test_model(model, test_loaders, device="cuda:0"):
     return accuracy
 
 
-def load_model(model, name, optim=False, get_dataloaders=False,
+def load_model(model, path, optim=False, get_dataloaders=False,
                get_train_metrics=False, get_test_scores=False,
                device="cuda:0"):
     output = []
-    path = 'models/' + name
     model.load_state_dict(torch.load(
         path + '_parameters.pt', map_location=device))
     if optim:
@@ -169,11 +172,9 @@ def load_model(model, name, optim=False, get_dataloaders=False,
     return output
 
 
-def save_model(model, name='model_0', optim=None,
+def save_model(model, path, optim=None,
                dataloaders=None, train_metrics=None,
                test_scores=None):
-    Path("models").mkdir(parents=True, exist_ok=True)
-    path = 'models/' + name
     torch.save(model.state_dict(), path + '_parameters.pt')
     if optim is not None:
         torch.save(optim.state_dict(), path + '_optim.pt')
@@ -185,12 +186,12 @@ def save_model(model, name='model_0', optim=None,
         np.save(path + '_test_scores.npy', test_scores)
 
 
-def plot_metrics(metrics, name='model_0'):
+def plot_metrics(metrics, save_path='figures/resnet50'):
     epochs = metrics[:, 0]
     remaining_metrics = metrics[:, 1:]
     systems = np.array([[epochs, metric] for metric in remaining_metrics.T])
     labels = ['Training', 'Validation']
     multiplot(systems[[0, 2]], 'Epoch', 'Loss',
-              labels, name + '_loss_comparison.pdf')
+              labels, save_path + '_loss_comparison.pdf')
     multiplot(systems[[1, 3]], 'Epoch', 'Accuracy',
-              labels, name + '_accuracy_comparison.pdf')
+              labels, save_path + '_accuracy_comparison.pdf')

@@ -1,7 +1,5 @@
 import os
 import glob
-from pathlib import Path
-import multiprocessing as mp
 import ssl
 
 import numpy as np
@@ -12,6 +10,7 @@ from torchvision.datasets.utils import download_url, extract_archive
 from torch.utils.data.dataset import Dataset
 from torch.utils.data import random_split
 from torchvision import transforms
+from src.utils.config import BEETLENET_STD, BEETLENET_MEAN
 
 def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip',
                      zip_name='beetles.zip', folder_name='beetles',
@@ -24,18 +23,31 @@ def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip
         extract_archive(archive, data_folder, False)
     return data_folder
 
-def image_folder_stats(data_folder):
-    dims_list = []
+def image_folder_dims(data_folder, ext = 'jpg', load_path = None, save_path = None):
 
-    for filename in glob.iglob(data_folder + '/**/*.jpg', recursive=True):
-        im = Image.open(filename)
-        dims_list.append(im.size)
+    if load_path is not None:
+        dims = np.load(load_path)
 
-    dims_list = np.array(dims_list)
-    avg_dims = np.mean(dims_list, axis=0)[::-1]
-    min_dims = np.min(dims_list, axis=0)[::-1]
-    max_dims = np.max(dims_list, axis=0)[::-1]
-    return avg_dims, min_dims, max_dims
+    else:
+        dims_list = []
+
+        for filename in glob.iglob(data_folder + '/**/*.' + ext, recursive=True):
+            im = Image.open(filename)
+            dims_list.append(im.size)
+
+        dims_list = np.array(dims_list)
+        avg_dims = np.mean(dims_list, axis=0)[::-1]
+        min_dims = np.min(dims_list, axis=0)[::-1]
+        max_dims = np.max(dims_list, axis=0)[::-1]
+        dims = np.array((avg_dims, min_dims, max_dims))
+    
+    if save_path is not None:
+        np.save(save_path, dims)
+        
+    return dims
+
+def image_folder_classes(data_folder):
+     return len(next(os.walk(data_folder))[1])
 
 def split_dataset(dataset, train_ratio, val_ratio):
 
@@ -47,37 +59,30 @@ def split_dataset(dataset, train_ratio, val_ratio):
     return train_data, val_data, test_data, dataset_sizes
 
 
-def dataset_stats(data_set, load=True, num_workers=mp.cpu_count(),
-                  path='models/beetle_mean_std.npy', batch_size=32):
+def dataset_stats(data_set, num_workers=0, batch_size=32):
 
-    if load:
-        mean, std = np.load(path)
+    loader = torch.utils.data.DataLoader(
+        data_set,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=False
+    )
+    cnt = 0
+    fst_moment = torch.empty(3)
+    snd_moment = torch.empty(3)
 
-    else:
-        loader = torch.utils.data.DataLoader(
-            data_set,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            shuffle=False
-        )
-        cnt = 0
-        fst_moment = torch.empty(3)
-        snd_moment = torch.empty(3)
+    for data, _ in loader:
 
-        for data, _ in loader:
+        b, _, h, w = data.shape
+        nb_pixels = b * h * w
+        sum_ = torch.sum(data, dim=[0, 2, 3])
+        sum_of_square = torch.sum(data ** 2, dim=[0, 2, 3])
+        fst_moment = (cnt * fst_moment + sum_) / (cnt + nb_pixels)
+        snd_moment = (cnt * snd_moment + sum_of_square) / (cnt + nb_pixels)
 
-            b, c, h, w = data.shape
-            nb_pixels = b * h * w
-            sum_ = torch.sum(data, dim=[0, 2, 3])
-            sum_of_square = torch.sum(data ** 2, dim=[0, 2, 3])
-            fst_moment = (cnt * fst_moment + sum_) / (cnt + nb_pixels)
-            snd_moment = (cnt * snd_moment + sum_of_square) / (cnt + nb_pixels)
-
-            cnt += nb_pixels
-        mean = fst_moment.cpu().detach().numpy()
-        std = torch.sqrt(snd_moment - fst_moment ** 2).cpu().detach().numpy()
-        Path("models").mkdir(parents=True, exist_ok=True)
-        np.save(path, np.stack((mean, std)))
+        cnt += nb_pixels
+    mean = fst_moment.cpu().detach().numpy()
+    std = torch.sqrt(snd_moment - fst_moment ** 2).cpu().detach().numpy()
     return mean, std
 
 class TransformsDataset(Dataset):
@@ -94,7 +99,39 @@ class TransformsDataset(Dataset):
     def __len__(self):
         return len(self.subset)
 
-def augmentation_1(start_height, start_width, scale, theta, mean, std):
+
+def standardize_stats(train_data, shape=(224, 448), num_workers=0, 
+                        batch_size=32, load_path=None, save_path=None):
+
+    if load_path is not None:
+        mean, std = np.load(load_path)
+
+    else:
+        resize = transforms.Resize(shape)
+        tensorfy = transforms.ToTensor()
+        transforms_pre_norm = transforms.Compose([resize, tensorfy])
+        train_data_pre_norm = TransformsDataset(train_data, transforms_pre_norm)
+        mean, std = dataset_stats(train_data_pre_norm, num_workers, batch_size)
+
+    if save_path is not None:
+        np.save(save_path, np.array((mean, std)))
+
+    return mean, std
+
+def default_transform(train_data, val_data, test_data, shape = (224, 448), 
+                        mean = BEETLENET_MEAN, std = BEETLENET_STD):
+    resize = transforms.Resize(shape)
+    tensorfy = transforms.ToTensor()
+    normalize = transforms.Normalize(mean, std)
+    transform = transforms.Compose([resize, tensorfy, normalize])
+    train_data_T = TransformsDataset(train_data, transform)
+    val_data_T = TransformsDataset(val_data, transform)
+    test_data_T = TransformsDataset(test_data, transform)
+
+    return train_data_T, val_data_T, test_data_T
+
+def augment_1(start_height, start_width, scale = 0.95, theta = 3, 
+                        mean = BEETLENET_MEAN, std = BEETLENET_STD):
     img_height_crop, img_width_crop = int(start_height * scale), int(start_width * scale)
     resize = transforms.Resize((start_height, start_width))
     center_crop = transforms.CenterCrop((img_height_crop, img_width_crop))
@@ -115,3 +152,12 @@ def augmentation_1(start_height, start_width, scale, theta, mean, std):
         vertical_flip, tensorfy, normalize]
     )
     return train_transforms, test_transforms
+
+def get_dataloaders(train_data, val_data, test_data, batch_size = 32, num_workers = 0):
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
+                                            num_workers=num_workers, shuffle=True)
+    val_loader = torch.utils.data.DataLoader(val_data, batch_size=batch_size,
+                                            num_workers=num_workers)
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size,
+                                            num_workers=num_workers)
+    return {'train': train_loader, 'val': val_loader, 'test': test_loader}
