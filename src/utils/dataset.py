@@ -10,7 +10,7 @@ from torchvision.datasets.utils import download_url, extract_archive
 from torch.utils.data.dataset import Dataset
 from torch.utils.data import random_split
 from torchvision import transforms
-from src.utils.config import BEETLENET_STD, BEETLENET_MEAN
+from .config import BEETLENET_STD, BEETLENET_MEAN
 
 def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip',
                      zip_name='beetles.zip', folder_name='beetles',

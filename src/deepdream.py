@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import cv2 as cv
 
-from src.utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift
+from .utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift
 
 
 def dream_process(model, config, img = None):

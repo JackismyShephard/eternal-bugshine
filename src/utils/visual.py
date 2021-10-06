@@ -7,7 +7,7 @@ import torch
 from torchvision import transforms
 from PIL import Image
 
-from src.utils.config import BEETLENET_MEAN, BEETLENET_STD
+from .config import BEETLENET_MEAN, BEETLENET_STD
 
 
 def multiplot(systems, x_axis, y_axis, labels, save_path=None,

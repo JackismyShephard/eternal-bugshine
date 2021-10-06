@@ -5,7 +5,7 @@ import copy
 
 import numpy as np
 import torch
-from src.utils.visual import multiplot
+from .visual import multiplot
 
 class EarlyStopping():
     """
