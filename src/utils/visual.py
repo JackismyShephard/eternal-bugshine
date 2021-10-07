@@ -84,7 +84,7 @@ def random_shift(tensor, h_shift, w_shift, undo=False, requires_grad = True):
         return rolled
 
 
-def show_img(img,title=None, save_path=None, dpi=200, figsize=(7, 7), show_axis='on'):
+def show_img(img,title=None, save_path=None, dpi=200, figsize=(7, 7), show_axis='on',close = False):
     plt.figure(figsize=figsize)
     plt.imshow(img)
     plt.axis(show_axis)
@@ -94,6 +94,8 @@ def show_img(img,title=None, save_path=None, dpi=200, figsize=(7, 7), show_axis=
         plt.savefig(save_path, bbox_inches='tight',
                     dpi=dpi, facecolor='w')
     plt.pause(0.001)  # pause a bit so that plots are updated
+    if close:
+        plt.close()
 
 def make_video(images, shape, path):
     imgs = [Image.fromarray(reshape_image(img, shape)) for img in images]

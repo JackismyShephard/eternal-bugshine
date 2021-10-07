@@ -10,7 +10,7 @@ import torch.nn.functional as F
 import cv2 as cv
 
 from .utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift
-
+from .utils.config import extend_path, save_config
 
 def dream_process(config, img = None):
     if img is None:
@@ -25,8 +25,16 @@ def dream_process(config, img = None):
     img = (img - config['mean']) / config['std']
     output_images = dreamspace(img, config['model'], config)
 
+    if config['output_img_path'] is not None:
+        path = extend_path(config['output_img_path'], config['img_overwrite'])
+        save_config(config, path)
+        show_img(output_images[-1], figsize=config['figsize'], show_axis='off',
+                 dpi=config['dpi'], save_path=path, close = True)
+
     if config['video_path'] is not None:
-        make_video(output_images, config['target_shape'], config['video_path'])
+        path = extend_path(config['video_path'], config['video_overwrite'])
+        save_config(config, path)
+        make_video(output_images, config['target_shape'], path)
     
     return output_images
 
@@ -53,7 +61,7 @@ def dreamspace(img, model, config):
             if config['show'] == True:
                 clear_output(wait=True)
                 show_img(output_image, figsize=config['figsize'], show_axis='off', 
-                            dpi=config['dpi'],save_path=config['output_img_path'])
+                            dpi=config['dpi'])
 
             if (i % config['save_interval']) == 0:
                 output_images.append(output_image)

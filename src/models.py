@@ -1,8 +1,25 @@
 import torch
 import copy
 import torch.nn as nn
+from torchvision import models
 
-class Dream_model(torch.nn.Module):
+def get_model(name, pretrained = False, num_classes = None, device = 'cuda'):
+    if name == 'resnet18':
+        model = models.resnet18(pretrained = pretrained)
+    elif name == 'resnet50':
+        model = models.resnet50(pretrained=pretrained)
+    else:
+        model = models.googlenet(pretrained=pretrained)
+    
+    if num_classes is not None:
+        num_fc = model.fc.in_features
+        model.fc = nn.Linear(num_fc, num_classes)
+    
+    model = model.to(device)
+
+    return model
+
+class Exposed_model(torch.nn.Module):
     def __init__(self, model, flatten_layer):
         super().__init__()
         self.model = copy.deepcopy(model)
@@ -32,10 +49,10 @@ class Dream_model(torch.nn.Module):
                                         str(out_idxs)] = x[:, out_idxs]
         return out_activations
 
-class Dreamnet50(Dream_model):
+class Dreamnet50(Exposed_model):
     def __init__(self, model):
         super().__init__(model, 'fc')
-class Googledream(Dream_model):
+class Googledream(Exposed_model):
 
     def __init__(self, model):
         super().__init__(model, 'dropout')
