@@ -13,14 +13,15 @@ from .utils.visual import reshape_image, get_noise_image, tensor_to_image, show_
 from .utils.config import extend_path, save_config
 
 def dream_process(config, img = None):
-    if img is None:
-        img = get_noise_image(config['noise'], config['target_shape'])
-
-    elif isinstance(img, str):
-        img = cv.imread(img)[:, :, ::-1]
+    if img is not None:
+        pass
+    elif config['input_img_path'] is not None:
+        img = cv.imread(config['input_img_path'])[:, :, ::-1]
         img = reshape_image(img, config['target_shape'])
         img = img.astype(np.float32)  # convert from uint8 to float32
         img /= 255.0  # get to [0, 1] range
+    else:
+        img = get_noise_image(config['noise'], config['target_shape'])
     
     img = (img - config['mean']) / config['std']
     output_images = dreamspace(img, config['model'], config)
