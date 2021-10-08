@@ -178,7 +178,7 @@ def save_model(model, path, optim=None,dataloaders=None, train_metrics=None):
 
     torch.save(model.state_dict(), path + '_parameters.pt')
     with open(path + '_aux_dict.json', 'w') as json_file:
-        json.dump(model.aux_dict, json_file)
+        json.dump(model.aux_dict, json_file, indent = 4)
     if optim is not None:
         torch.save(optim.state_dict(), path + '_optim.pt')
     if dataloaders is not None:

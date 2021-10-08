@@ -83,7 +83,7 @@ def save_config(config, path):
     new_config['device'] = str(new_config['device'])
     new_config['model'] = new_config['model'].aux_dict
     with open(json_path, 'w') as json_file:
-        json.dump(new_config, json_file)
+        json.dump(new_config, json_file, indent = 4)
 
 
 def save_config2(config, path):
