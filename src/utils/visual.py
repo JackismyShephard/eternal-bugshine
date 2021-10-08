@@ -93,9 +93,9 @@ def show_img(img,title=None, save_path=None, dpi=200, figsize=(7, 7), show_axis=
     if save_path is not None:
         plt.savefig(save_path, bbox_inches='tight',
                     dpi=dpi, facecolor='w')
-    plt.pause(0.001)  # pause a bit so that plots are updated
     if close:
         plt.close()
+    plt.pause(0.001)  # pause a bit so that plots are updated
 
 def make_video(images, shape, path):
     imgs = [Image.fromarray(reshape_image(img, shape)) for img in images]
