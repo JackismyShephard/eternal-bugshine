@@ -3,7 +3,7 @@ import copy
 import torch.nn as nn
 from torchvision import models
 
-def get_model(name, pretrained = False, num_classes = None, device = 'cuda'):
+def get_model(name, pretrained = True, num_classes = None, device = 'cuda'):
     if name == 'resnet18':
         model = models.resnet18(pretrained = pretrained)
     elif name == 'resnet50':
@@ -17,12 +17,16 @@ def get_model(name, pretrained = False, num_classes = None, device = 'cuda'):
     
     model = model.to(device)
 
+    model.aux_dict = {'name': name, 'pretrained': pretrained, 
+                      'num_classes': num_classes, 'train_iters': 0, 'test_acc': None}
+
     return model
 
 class Exposed_model(torch.nn.Module):
     def __init__(self, model, flatten_layer):
         super().__init__()
         self.model = copy.deepcopy(model)
+        self.aux_dict = model.aux_dict
         self.flatten_layer = flatten_layer
         self.layers = {}
         for param in self.model.parameters():
