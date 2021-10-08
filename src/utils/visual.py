@@ -50,9 +50,9 @@ def get_noise_image(type, shape):
 
 
 def preprocess_image(img, mean=BEETLENET_MEAN, std=BEETLENET_STD, 
-                        clip = 255.0):
+                        range = 255.0):
     img = img.astype(np.float32)  # convert from uint8 to float32
-    img /= clip  # get to [0, 1] range
+    img /= range  # get to [0, 1] range
     img = (img - mean) / std
     return img
 
@@ -96,6 +96,9 @@ def show_img(img,title=None, save_path=None, dpi=200, figsize=(7, 7), show_axis=
     if close:
         plt.close()
     plt.pause(0.001)  # pause a bit so that plots are updated
+
+def save_img(img, path):
+    cv.imwrite(path, img[:, :, ::-1])
 
 def make_video(images, shape, path):
     imgs = [Image.fromarray(reshape_image(img, shape)) for img in images]

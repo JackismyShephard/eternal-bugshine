@@ -6,10 +6,10 @@ from torchvision import models
 def get_model(name, pretrained = True, num_classes = None, device = 'cuda'):
     if name == 'resnet18':
         model = models.resnet18(pretrained = pretrained)
-    elif name == 'resnet50':
-        model = models.resnet50(pretrained=pretrained)
-    else:
+    elif name == 'googlenet':
         model = models.googlenet(pretrained=pretrained)
+    else:
+        model = models.resnet50(pretrained=pretrained)
     
     if num_classes is not None:
         num_fc = model.fc.in_features
@@ -52,7 +52,6 @@ class Exposed_model(torch.nn.Module):
                         out_activations[name + '_' +
                                         str(out_idxs)] = x[:, out_idxs]
         return out_activations
-
 class Dreamnet50(Exposed_model):
     def __init__(self, model):
         super().__init__(model, 'fc')

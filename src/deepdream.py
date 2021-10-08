@@ -8,8 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import cv2 as cv
-
-from .utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift
+from .utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift, save_img
 from .utils.config import extend_path, save_config
 
 def dream_process(config, img = None):
@@ -29,8 +28,9 @@ def dream_process(config, img = None):
     if config['output_img_path'] is not None:
         path = extend_path(config['output_img_path'], config['img_overwrite'])
         save_config(config, path)
-        show_img(output_images[-1], figsize=config['figsize'], show_axis='off',
-                 dpi=config['dpi'], save_path=path, close = True)
+        #show_img(output_images[-1], figsize=config['figsize'], show_axis='off',
+        #         dpi=config['dpi'], save_path=path, close = True)
+        save_img(output_images[-1], path)
 
     if config['video_path'] is not None:
         path = extend_path(config['video_path'], config['video_overwrite'])
@@ -46,9 +46,6 @@ def dreamspace(img, model, config):
     for level in range(config['levels']):
         scaled_tensor = scale_level(img, start_size, level,
                                     config['ratio'], config['levels'],  config['device'])
-        
-        if level == 3:
-            return output_images
 
         for i in range(config['num_iters']):
             h_shift, w_shift = np.random.randint(-config['shift_size'], config['shift_size'] + 1, 2)

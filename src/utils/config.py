@@ -1,4 +1,3 @@
-import csv
 import numpy as np
 import copy
 import os
@@ -39,7 +38,7 @@ DREAM_CONFIG = {
     'kernel_size': 9,
     'smooth_coef': 0.5,
     'clamp_type': 'standardize',
-
+    
     'show': True,
     'figsize': (15, 15),
     'save_interval': 1,
@@ -84,21 +83,3 @@ def save_config(config, path):
     new_config['model'] = new_config['model'].aux_dict
     with open(json_path, 'w') as json_file:
         json.dump(new_config, json_file, indent = 4)
-
-
-def save_config2(config, path):
-    (root, _) = os.path.splitext(path)
-    csv_path = root + '.csv'
-    with open(csv_path, mode='w') as csv_file:
-        csv_writer = csv.writer(csv_file, delimiter=',',
-                                quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        for (name, param) in config.items():
-            if name == 'model':
-                param_str = type(param).__name__
-            elif name in ['output_img_path', 'video_path', 'show']:
-                continue
-            else:
-                param_str = str(param)
-            csv_writer.writerow([name, param_str])
-    return csv_path
-

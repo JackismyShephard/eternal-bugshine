@@ -91,8 +91,7 @@ def fit(model, data_loaders, dataset_sizes, criterion,
                     running_loss += loss.item() * inputs.size(0)
                     running_corrects += torch.sum(preds == labels.data)
                 epoch_loss = running_loss / dataset_sizes[phase]
-                epoch_acc = (running_corrects.double()).item() / \
-                    dataset_sizes[phase]
+                epoch_acc = (running_corrects.double()).item() / dataset_sizes[phase]
                 if phase == 'train':
                     if scheduler is not None:
                         scheduler.step()
