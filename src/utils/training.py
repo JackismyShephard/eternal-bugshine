@@ -3,6 +3,7 @@ from IPython.display import clear_output
 import time
 import copy
 import os
+import json
 
 import numpy as np
 import torch
@@ -131,6 +132,8 @@ def fit(model, data_loaders, dataset_sizes, criterion,
     # load best model weights
     model.load_state_dict(best_model_wts)
     
+    model.aux_dict['train_iters'] += len(train_loss)
+
     return metrics
 
 def test_model(model, test_loaders, device="cuda"):
@@ -147,15 +150,17 @@ def test_model(model, test_loaders, device="cuda"):
     accuracy = (100 * correct / total)
     print('Accuracy of the network on test images: %.2f %%' %
           (accuracy))
+    model.aux_dict['test_acc'] = accuracy
     return accuracy
 
 
 def load_model(model, path, optim=False, get_dataloaders=False,
-               get_train_metrics=False, get_test_scores=False,
-               device="cuda"):
+               get_train_metrics=False, device="cuda"):
     output = []
     model.load_state_dict(torch.load(
         path + '_parameters.pt', map_location=device))
+    with open(path + '_aux_dict.json') as json_file:
+        model.aux_dict = json.load(json_file)
     if optim:
         optim.load_state_dict(torch.load(
             path + '_optim.pt', map_location=device))
@@ -166,24 +171,20 @@ def load_model(model, path, optim=False, get_dataloaders=False,
     if get_train_metrics:
         metrics = np.load(path + '_train_metrics.npy')
         output.append(metrics)
-    if get_test_scores:
-        test_scores = np.load(path + '_test_scores.npy')
-        output.append(test_scores)
     return output
 
 
-def save_model(model, path, optim=None,
-               dataloaders=None, train_metrics=None,
-               test_scores=None):
+def save_model(model, path, optim=None,dataloaders=None, train_metrics=None):
+
     torch.save(model.state_dict(), path + '_parameters.pt')
+    with open(path + '_aux_dict.json', 'w') as json_file:
+        json.dump(model.aux_dict, json_file)
     if optim is not None:
         torch.save(optim.state_dict(), path + '_optim.pt')
     if dataloaders is not None:
         torch.torch.save(dataloaders, path + '_dataloaders.pt')
     if train_metrics is not None:
         np.save(path + '_train_metrics.npy', train_metrics)
-    if test_scores is not None:
-        np.save(path + '_test_scores.npy', test_scores)
 
 
 def plot_metrics(metrics, save_path=None):
