@@ -4,6 +4,8 @@ import os
 import json
 from ..models import get_model, Exposed_model
 
+RNG_SEED = 0x1010101
+
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
