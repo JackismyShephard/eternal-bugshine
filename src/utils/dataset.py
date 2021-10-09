@@ -11,7 +11,7 @@ from torch.utils.data.dataset import Dataset
 from torch.utils.data import random_split, Subset
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
-from .config import BEETLENET_STD, BEETLENET_MEAN
+from .config import BEETLENET_STD, BEETLENET_MEAN, RNG_SEED
 
 def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip',
                      zip_name='beetles.zip', folder_name='beetles',
@@ -22,6 +22,14 @@ def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip
     if (not os.path.exists(data_folder) or force_download):
         download_url(url, root, zip_name)
         extract_archive(archive, data_folder, False)
+    image_folder_dirs = os.walk(data_folder+'/images/')
+    next(image_folder_dirs)
+    for root, dirs, files in image_folder_dirs:
+        if len(files) < 10:
+            print(root)
+            for name in files:
+                os.remove(os.path.join(root, name))
+            os.rmdir(root)
     return data_folder
 
 def image_folder_dims(data_folder, ext = 'jpg', load_path = None, save_path = None):
@@ -56,14 +64,18 @@ def split_dataset(dataset, train_ratio, val_ratio):
     val_size = int(val_ratio * (len(dataset) - train_size))
     test_size = len(dataset) - (train_size + val_size)
     dataset_sizes = {'train': train_size, 'val': val_size, 'test': test_size}
-    train_data, val_data, test_data = random_split(dataset, dataset_sizes.values())
+    train_data, val_data, test_data = random_split(dataset, dataset_sizes.values(),
+                                                    generator=torch.manual_seed(RNG_SEED))
     return train_data, val_data, test_data, dataset_sizes
 
 #currently useless, some classes contain only 1 or 2 examples
 def split_dataset_stratified(dataset, train_ratio, val_ratio):
     dataset_indices = list(range(len(dataset.targets)))
-    train_indices, test_indices = train_test_split(dataset_indices, train_size=train_ratio, stratify=dataset.targets)
-    train_indices, val_indices  = train_test_split(train_indices, train_size=train_ratio, stratify=dataset.targets)
+    train_indices, test_indices = train_test_split(dataset_indices, train_size=train_ratio, 
+                                                    stratify=dataset.targets, random_state=RNG_SEED)
+    new_targets = np.delete(dataset.targets, test_indices, axis=0)
+    train_indices, val_indices  = train_test_split(train_indices, train_size=train_ratio, 
+                                                    stratify=new_targets, random_state=RNG_SEED)
     train_data  = Subset(dataset, train_indices)
     test_data   = Subset(dataset, test_indices)
     val_data    = Subset(dataset, val_indices)
@@ -168,9 +180,12 @@ def augment_1(start_height, start_width, scale = 0.95, theta = 3,
 
 def get_dataloaders(train_data, val_data, test_data, batch_size = 32, num_workers = 0):
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
-                                            num_workers=num_workers, shuffle=True)
+                                            num_workers=num_workers, shuffle=True, 
+                                            generator=torch.manual_seed(RNG_SEED))
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=batch_size,
-                                            num_workers=num_workers)
+                                            num_workers=num_workers, 
+                                            generator=torch.manual_seed(RNG_SEED))
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size,
-                                            num_workers=num_workers)
+                                            num_workers=num_workers, 
+                                            generator=torch.manual_seed(RNG_SEED))
     return {'train': train_loader, 'val': val_loader, 'test': test_loader}
