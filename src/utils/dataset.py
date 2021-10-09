@@ -8,8 +8,9 @@ from PIL import Image
 import torch
 from torchvision.datasets.utils import download_url, extract_archive
 from torch.utils.data.dataset import Dataset
-from torch.utils.data import random_split
+from torch.utils.data import random_split, Subset
 from torchvision import transforms
+from sklearn.model_selection import train_test_split
 from .config import BEETLENET_STD, BEETLENET_MEAN
 
 def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip',
@@ -57,6 +58,18 @@ def split_dataset(dataset, train_ratio, val_ratio):
     dataset_sizes = {'train': train_size, 'val': val_size, 'test': test_size}
     train_data, val_data, test_data = random_split(dataset, dataset_sizes.values())
     return train_data, val_data, test_data, dataset_sizes
+
+#currently useless, some classes contain only 1 or 2 examples
+def split_dataset_stratified(dataset, train_ratio, val_ratio):
+    dataset_indices = list(range(len(dataset.targets)))
+    train_indices, test_indices = train_test_split(dataset_indices, train_size=train_ratio, stratify=dataset.targets)
+    train_indices, val_indices  = train_test_split(train_indices, train_size=train_ratio, stratify=dataset.targets)
+    train_data  = Subset(dataset, train_indices)
+    test_data   = Subset(dataset, test_indices)
+    val_data    = Subset(dataset, val_indices)
+    dataset_sizes = {'train': len(train_data), 'val': len(val_data), 'test': len(test_data)}
+    return train_data, val_data, test_data, dataset_sizes
+
 
 
 def dataset_stats(data_set, num_workers=0, batch_size=32):
