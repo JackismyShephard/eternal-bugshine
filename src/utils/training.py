@@ -7,6 +7,7 @@ import json
 
 import numpy as np
 import torch
+from .config import RNG_SEED
 from .visual import multiplot
 
 class EarlyStopping():
@@ -15,7 +16,7 @@ class EarlyStopping():
     certain epochs.
     """
 
-    def __init__(self, patience=5, min_delta=0):
+    def __init__(self, patience=5, min_delta=0, min_epochs=0):
         """
         :param patience: how many epochs to wait before stopping when loss is
                not improving
@@ -27,20 +28,23 @@ class EarlyStopping():
         self.counter = 0
         self.best_loss = None
         self.early_stop = False
+        self.epochs = 0
+        self.min_epochs = min_epochs
 
     def __call__(self, val_loss):
+        self.epochs += 1
         if self.best_loss == None:
             self.best_loss = val_loss
-        elif self.best_loss - val_loss > self.min_delta:
+        if self.best_loss - val_loss > self.min_delta:
             self.best_loss = val_loss
         elif self.best_loss - val_loss < self.min_delta:
-            self.counter += 1
-            print(
-                f"INFO: Early stopping counter {self.counter} of {self.patience}")
-            if self.counter >= self.patience:
-                print('INFO: Early stopping')
-                self.early_stop = True
-
+            if self.epochs > self.min_epochs:
+                self.counter += 1
+                print(
+                    f"INFO: Early stopping counter {self.counter} of {self.patience}")
+                if self.counter >= self.patience:
+                    print('INFO: I have no time for your silly games. Stopping early.')
+                    self.early_stop = True
 
 def fit(model, data_loaders, dataset_sizes, criterion,
         optimizer, early_stopping, scheduler=None, clear= 'notebook',
@@ -132,6 +136,12 @@ def fit(model, data_loaders, dataset_sizes, criterion,
     model.load_state_dict(best_model_wts)
     
     model.aux_dict['train_iters'] += len(train_loss)
+    model.aux_dict['dataset_transform'] = str(data_loaders['train'].dataset.transform)
+    model.aux_dict['batch_size'] = data_loaders['train'].batch_size
+    model.aux_dict['dataset_folder'] = data_loaders['train'].dataset.subset.dataset.root #i hate oop
+    model.aux_dict['dataset_rng_seed'] = RNG_SEED
+    #transform: dataloader.dataset.transform
+    #batch_size: dataloader.batch_size
 
     return metrics
 
