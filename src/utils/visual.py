@@ -44,7 +44,12 @@ def get_noise_image(type, shape):
     if type == 'uniform':
         (h, w) = shape
         img = np.random.uniform(size=(h, w, 3)).astype(np.float32)
-    elif type == 'correlated':
+    elif type == 'correlated_uniform':
+        (h, w) = shape
+        img = np.random.uniform(size=(h, w, 3)).astype(np.float32)
+        img = skfilt.gaussian(img, mode='reflect', multichannel=True)
+        return img
+    elif type == 'correlated_gaussian':
         (h, w) = shape
         img = np.random.normal(size=(h, w, 3)).astype(np.float32)
         img = skfilt.gaussian(img, mode='reflect', multichannel=True)
