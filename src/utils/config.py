@@ -52,9 +52,9 @@ DREAM_CONFIG = {
 }
 
 
-def get_new_config(param_dict):
+def get_new_config(param_dict, old_config=DREAM_CONFIG):
 
-    config = copy.deepcopy(DREAM_CONFIG)
+    config = copy.deepcopy(old_config)
     for (name, param) in param_dict.items():
         config[name] = param
     return config
