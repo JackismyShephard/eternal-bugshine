@@ -6,6 +6,7 @@ import cv2 as cv
 import torch
 from torchvision import transforms
 from PIL import Image
+from skimage import filters as skfilt
 
 from .config import BEETLENET_MEAN, BEETLENET_STD
 
@@ -43,6 +44,11 @@ def get_noise_image(type, shape):
     if type == 'uniform':
         (h, w) = shape
         img = np.random.uniform(size=(h, w, 3)).astype(np.float32)
+    elif type == 'correlated':
+        (h, w) = shape
+        img = np.random.normal(size=(h, w, 3)).astype(np.float32)
+        img = skfilt.gaussian(img, mode='reflect', multichannel=True)
+        return img
     else:
         (h, w) = shape
         img = np.random.normal(size=(h, w, 3)).astype(np.float32)
