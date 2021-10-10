@@ -68,7 +68,6 @@ def split_dataset(dataset, train_ratio, val_ratio):
                                                     generator=torch.manual_seed(RNG_SEED))
     return train_data, val_data, test_data, dataset_sizes
 
-#currently useless, some classes contain only 1 or 2 examples
 def split_dataset_stratified(dataset, train_ratio, val_ratio):
     dataset_indices = list(range(len(dataset.targets)))
     train_indices, test_indices = train_test_split(dataset_indices, train_size=train_ratio, 
@@ -152,6 +151,24 @@ def default_transform(train_data, val_data, test_data, shape = (224, 448),
     train_data_T = TransformsDataset(train_data, transform)
     val_data_T = TransformsDataset(val_data, transform)
     test_data_T = TransformsDataset(test_data, transform)
+
+    return train_data_T, val_data_T, test_data_T
+
+def apply_transforms(transform_list, train_data, val_data , test_data):
+    default_shape = (224, 448)
+    default_mean = BEETLENET_MEAN
+    default_std  = BEETLENET_STD
+
+    default_transforms = transforms.Compose([
+        transforms.Resize(default_shape),
+        transforms.ToTensor(),
+        transforms.Normalize(default_mean, default_std)
+    ])
+    transform = transforms.Compose(transform_list + [default_transforms])
+
+    train_data_T = TransformsDataset(train_data, transform)
+    val_data_T = TransformsDataset(val_data, default_transforms)
+    test_data_T = TransformsDataset(test_data, default_transforms)
 
     return train_data_T, val_data_T, test_data_T
 
