@@ -7,6 +7,7 @@ import torch
 from torchvision import transforms
 from PIL import Image
 from skimage import filters as skfilt
+from skimage.util import random_noise
 
 from .config import BEETLENET_MEAN, BEETLENET_STD
 
@@ -59,6 +60,26 @@ def get_noise_image(type, shape):
         img = np.random.normal(size=(h, w, 3)).astype(np.float32)
     return img
 
+def get_solid_color(color, shape):
+    _color = color
+    if color == 'white':
+        _color = [1., 1., 1.]
+    if color == 'black':
+        _color = [0.,0.,0.]
+    if color == 'red':
+        _color = [1.,0.,0.]
+    if color == 'green':
+        _color = [0.,1.,0.]
+    if color == 'blue':
+        _color = [0.,0.,1.]
+    (h, w) = shape
+    img = np.zeros(shape=(h,w,3), dtype=np.float32)
+    for i in range(3):
+        img[:,:,i] = _color[i]
+    return img
+def apply_noise(type, img):
+    return random_noise(img, type)
+    
 
 def preprocess_image(img, mean=BEETLENET_MEAN, std=BEETLENET_STD, 
                         range = 255.0):
