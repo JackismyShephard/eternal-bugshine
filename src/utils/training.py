@@ -7,8 +7,9 @@ import json
 
 import numpy as np
 import torch
-from .config import RNG_SEED
+
 from .visual import multiplot
+from .config import RNG_SEED
 
 class EarlyStopping():
     """
@@ -47,10 +48,10 @@ class EarlyStopping():
                     self.early_stop = True
 
 def fit(model, data_loaders, dataset_sizes, criterion,
-        optimizer, early_stopping, scheduler=None, clear= 'notebook',
-        num_epochs=100, device="cuda", plot=True, metrics_path = None):
+        optimizer, early_stopping, clear='terminal',
+        num_epochs=100, device="cuda", plot=False, metrics_path = None, lr_decay_gamma=1):
     since = time.time()
-
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_decay_gamma)
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
     metrics = []
@@ -97,8 +98,6 @@ def fit(model, data_loaders, dataset_sizes, criterion,
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = (running_corrects.double()).item() / dataset_sizes[phase]
                 if phase == 'train':
-                    if scheduler is not None:
-                        scheduler.step()
                     train_loss.append(epoch_loss)
                     train_acc.append(epoch_acc)
                 else:
@@ -125,6 +124,7 @@ def fit(model, data_loaders, dataset_sizes, criterion,
                 plot_metrics(metrics, metrics_path)
             if early_stopping.early_stop:
                 break
+            scheduler.step()
     except KeyboardInterrupt:
         print("Training interrupted.")
         pass
@@ -140,8 +140,6 @@ def fit(model, data_loaders, dataset_sizes, criterion,
     model.aux_dict['batch_size'] = data_loaders['train'].batch_size
     model.aux_dict['dataset_folder'] = data_loaders['train'].dataset.subset.dataset.root #i hate oop
     model.aux_dict['dataset_rng_seed'] = RNG_SEED
-    #transform: dataloader.dataset.transform
-    #batch_size: dataloader.batch_size
 
     return metrics
 
