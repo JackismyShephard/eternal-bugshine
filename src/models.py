@@ -6,6 +6,8 @@ from torchvision import models
 def get_model(name, pretrained = True, num_classes = None, device = 'cuda'):
     if name == 'resnet18':
         model = models.resnet18(pretrained = pretrained)
+    elif name == 'resnet34':
+        model = models.resnet34(pretrained = pretrained)
     elif name == 'googlenet':
         model = models.googlenet(pretrained=pretrained)
     else:
