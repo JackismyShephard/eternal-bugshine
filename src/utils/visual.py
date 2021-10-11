@@ -1,5 +1,4 @@
 import collections
-
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2 as cv
@@ -9,7 +8,7 @@ from PIL import Image
 from skimage import filters as skfilt
 from skimage.util import random_noise
 
-from .config import BEETLENET_MEAN, BEETLENET_STD
+from .config import BEETLENET_MEAN, BEETLENET_STD, RNG_SEED
 
 
 def multiplot(systems, x_axis, y_axis, labels, save_path=None,
@@ -64,20 +63,20 @@ def get_solid_color(color, shape):
     _color = color
     if color == 'white':
         _color = [1., 1., 1.]
-    if color == 'black':
+    elif color == 'black':
         _color = [0.,0.,0.]
-    if color == 'red':
+    elif color == 'red':
         _color = [1.,0.,0.]
-    if color == 'green':
+    elif color == 'green':
         _color = [0.,1.,0.]
-    if color == 'blue':
+    elif color == 'blue':
         _color = [0.,0.,1.]
     (h, w) = shape
     img = np.zeros(shape=(h,w,3), dtype=np.float32)
     for i in range(3):
         img[:,:,i] = _color[i]
     return img
-def apply_noise(type, img):
+def add_noise(type, img):
     return random_noise(img, type)
     
 
