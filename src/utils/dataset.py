@@ -205,8 +205,9 @@ def get_dataloaders(train_data, val_data, test_data, batch_size = 32, num_worker
 
 class RandomizeBackground:
     """Replace beetle image tensor background color with a random color."""
-    def __init__(self, cutoff):
+    def __init__(self, cutoff, noise_type=None):
         self.cutoff = cutoff
+        self.noise_type = noise_type
 
     def __call__(self, x):
         np_x = np.array(x) / 255
@@ -218,7 +219,8 @@ class RandomizeBackground:
         g = torch.rand(1).item()
         b = torch.rand(1).item()
         new_bg = get_solid_color([r,g,b], [np_x.shape[0], np_x.shape[1]])
-        new_bg = add_noise('gaussian',new_bg)
+        if not self.noise_type == None:
+            new_bg = add_noise('gaussian',new_bg)
         np_x = np.where(mask == True, (new_bg * 255).astype('uint8'), (np_x * 255).astype('uint8'))
         return Image.fromarray(np_x)
 
