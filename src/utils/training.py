@@ -49,7 +49,11 @@ class EarlyStopping():
 
 def fit(model, data_loaders, dataset_sizes, criterion,
         optimizer, early_stopping, clear='terminal',
-        num_epochs=100, device="cuda", plot=False, metrics_path = None, lr_decay_gamma=1):
+        num_epochs=100, device="cuda", plot=False, 
+        model_name = None, lr_decay_gamma=1,
+        save_interval=25):
+    assert model_name is not None
+
     since = time.time()
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_decay_gamma)
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -59,6 +63,13 @@ def fit(model, data_loaders, dataset_sizes, criterion,
     val_loss, val_acc = [], []
     epochs = []
 
+    metrics_path = 'figures/'+model_name
+    model_path   = 'models/'+model_name
+    
+    model.aux_dict['batch_size'] = data_loaders['train'].batch_size
+    model.aux_dict['dataset_folder'] = data_loaders['train'].dataset.subset.dataset.root #i hate oop
+    model.aux_dict['dataset_rng_seed'] = RNG_SEED
+    
     try:
         for epoch in np.arange(num_epochs) + 1:
             epochs.append(epoch)
@@ -118,13 +129,20 @@ def fit(model, data_loaders, dataset_sizes, criterion,
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(
                 'Val', val_loss[-1], val_acc[-1]))
             print()
-            if plot == True:
-                metrics = np.array([epochs, train_loss, train_acc,
+            metrics = np.array([epochs, train_loss, train_acc,
                                     val_loss, val_acc])
+            if plot == True:
                 plot_metrics(metrics, metrics_path)
+            scheduler.step()
+            if epoch % save_interval == 0:
+                temp_state_dict = copy.deepcopy(model.state_dict())
+                model.load_state_dict(best_model_wts)
+                model.aux_dict['train_iters'] += len(train_loss)
+                model.aux_dict['dataset_transform'] = str(data_loaders['train'].dataset.transform)
+                save_model(model, model_path, optim=None,dataloaders=data_loaders, train_metrics=metrics)
+                model.load_state_dict(temp_state_dict)
             if early_stopping.early_stop:
                 break
-            scheduler.step()
     except KeyboardInterrupt:
         print("Training interrupted.")
         pass
@@ -137,9 +155,6 @@ def fit(model, data_loaders, dataset_sizes, criterion,
     
     model.aux_dict['train_iters'] += len(train_loss)
     model.aux_dict['dataset_transform'] = str(data_loaders['train'].dataset.transform)
-    model.aux_dict['batch_size'] = data_loaders['train'].batch_size
-    model.aux_dict['dataset_folder'] = data_loaders['train'].dataset.subset.dataset.root #i hate oop
-    model.aux_dict['dataset_rng_seed'] = RNG_SEED
 
     return metrics
 
