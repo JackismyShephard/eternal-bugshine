@@ -57,6 +57,7 @@ def fit(model, data_loaders, dataset_sizes, criterion,
     since = time.time()
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_decay_gamma)
     best_model_wts = copy.deepcopy(model.state_dict())
+    best_model_epochs = 0
     best_acc = 0.0
     metrics = []
     train_loss, train_acc = [], []
@@ -69,6 +70,8 @@ def fit(model, data_loaders, dataset_sizes, criterion,
     model.aux_dict['batch_size'] = data_loaders['train'].batch_size
     model.aux_dict['dataset_folder'] = data_loaders['train'].dataset.subset.dataset.root #i hate oop
     model.aux_dict['dataset_rng_seed'] = RNG_SEED
+    model.aux_dict['dataset_transform'] = str(data_loaders['train'].dataset.transform)
+    model.aux_dict['train_stopped_early'] = False
     
     try:
         for epoch in np.arange(num_epochs) + 1:
@@ -117,6 +120,7 @@ def fit(model, data_loaders, dataset_sizes, criterion,
                     if epoch_acc > best_acc:
                         best_acc = epoch_acc
                         best_model_wts = copy.deepcopy(model.state_dict())
+                        best_model_epochs = int(epoch)
                     early_stopping(epoch_loss)
             if clear == 'notebook':
                 clear_output(wait=True)
@@ -137,11 +141,11 @@ def fit(model, data_loaders, dataset_sizes, criterion,
             if epoch % save_interval == 0:
                 temp_state_dict = copy.deepcopy(model.state_dict())
                 model.load_state_dict(best_model_wts)
-                model.aux_dict['train_iters'] += len(train_loss)
-                model.aux_dict['dataset_transform'] = str(data_loaders['train'].dataset.transform)
+                model.aux_dict['train_iters'] = best_model_epochs
                 save_model(model, model_path, optim=None,dataloaders=data_loaders, train_metrics=metrics)
                 model.load_state_dict(temp_state_dict)
             if early_stopping.early_stop:
+                model.aux_dict['training_stopped_early'] = True
                 break
     except KeyboardInterrupt:
         print("Training interrupted.")
@@ -153,8 +157,8 @@ def fit(model, data_loaders, dataset_sizes, criterion,
     # load best model weights
     model.load_state_dict(best_model_wts)
     
-    model.aux_dict['train_iters'] += len(train_loss)
-    model.aux_dict['dataset_transform'] = str(data_loaders['train'].dataset.transform)
+    model.aux_dict['train_iters'] = best_model_epochs
+    
 
     return metrics
 
