@@ -12,6 +12,7 @@ from torch.utils.data import random_split, Subset
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
 from .config import BEETLENET_STD, BEETLENET_MEAN, RNG_SEED
+from .visual import add_noise, get_solid_color
 
 def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip',
                      zip_name='beetles.zip', folder_name='beetles',
@@ -206,3 +207,48 @@ def get_dataloaders(train_data, val_data, test_data, batch_size = 32, num_worker
                                             num_workers=num_workers, 
                                             generator=torch.manual_seed(RNG_SEED))
     return {'train': train_loader, 'val': val_loader, 'test': test_loader}
+
+class RandomizeBackground:
+    """Replace beetle image tensor background color with a random color."""
+    def __init__(self, cutoff):
+        self.generator = torch.manual_seed(RNG_SEED)
+        self.cutoff = cutoff
+
+    def __call__(self, x):
+        np_x = np.array(x) / 255
+        np_x_gray = (np.sum(np_x, axis=2)) / 3
+        mask = np_x_gray > self.cutoff
+        mask = np.dstack([mask, mask, mask])
+        
+        r = torch.rand(1, generator=self.generator).item()
+        g = torch.rand(1, generator=self.generator).item()
+        b = torch.rand(1, generator=self.generator).item()
+        new_bg = get_solid_color([r,g,b], [np_x.shape[0], np_x.shape[1]])
+        new_bg = add_noise('gaussian',new_bg)
+        np_x = np.where(mask == True, (new_bg * 255).astype('uint8'), (np_x * 255).astype('uint8'))
+        return Image.fromarray(np_x)
+
+class NotStupidRandomResizedCrop:
+    """A RandomResizedCrop reimplementation that does just what we need it to do.
+        Crops a section of the image with shape d*img.shape, where
+        scale[0] <= d <= scale[1], at some random coordinate in the image."""
+    def __init__(self, scale=(0.5,1.)):
+        self.generator = torch.manual_seed(RNG_SEED)
+        self.scale = scale
+
+    def __call__(self, x):
+        np_x = np.array(x)
+        rand1 = torch.rand(1, generator=self.generator).item()
+        scale = rand1 * (self.scale[1] - self.scale[0]) + self.scale[0]
+        h, w = np_x.shape[0], np_x.shape[1]
+        height = scale * h
+        width = scale * w
+        rand2 = torch.rand(1, generator=self.generator).item()
+        y_space = h - height
+        x_space = w - width
+        left = int(rand2 * x_space)
+        top = int(rand2 * y_space)
+        x = transforms.functional.crop(x, top, left, height, width)
+        x = transforms.functional.resize(x, [h,w])
+        return x
+
