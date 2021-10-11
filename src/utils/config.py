@@ -41,7 +41,7 @@ DREAM_CONFIG = {
     'smooth_coef': 0.5,
     'clamp_type': 'standardize',
     
-    'show': True,
+    'show': False,
     'figsize': (15, 15),
     'save_interval': 1,
     'dpi': 200,
