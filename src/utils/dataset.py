@@ -1,10 +1,8 @@
 import os
 import glob
 import ssl
-
 import numpy as np
 from PIL import Image
-
 import torch
 from torchvision.datasets.utils import download_url, extract_archive
 from torch.utils.data.dataset import Dataset
@@ -198,20 +196,16 @@ def augment_1(start_height, start_width, scale = 0.95, theta = 3,
 
 def get_dataloaders(train_data, val_data, test_data, batch_size = 32, num_workers = 0):
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
-                                            num_workers=num_workers, shuffle=True, 
-                                            generator=torch.manual_seed(RNG_SEED))
+                                            num_workers=num_workers, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=batch_size,
-                                            num_workers=num_workers, 
-                                            generator=torch.manual_seed(RNG_SEED))
+                                            num_workers=num_workers)
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size,
-                                            num_workers=num_workers, 
-                                            generator=torch.manual_seed(RNG_SEED))
+                                            num_workers=num_workers)
     return {'train': train_loader, 'val': val_loader, 'test': test_loader}
 
 class RandomizeBackground:
     """Replace beetle image tensor background color with a random color."""
     def __init__(self, cutoff):
-        self.generator = torch.manual_seed(RNG_SEED)
         self.cutoff = cutoff
 
     def __call__(self, x):
@@ -220,9 +214,9 @@ class RandomizeBackground:
         mask = np_x_gray > self.cutoff
         mask = np.dstack([mask, mask, mask])
         
-        r = torch.rand(1, generator=self.generator).item()
-        g = torch.rand(1, generator=self.generator).item()
-        b = torch.rand(1, generator=self.generator).item()
+        r = torch.rand(1).item()
+        g = torch.rand(1).item()
+        b = torch.rand(1).item()
         new_bg = get_solid_color([r,g,b], [np_x.shape[0], np_x.shape[1]])
         new_bg = add_noise('gaussian',new_bg)
         np_x = np.where(mask == True, (new_bg * 255).astype('uint8'), (np_x * 255).astype('uint8'))
@@ -233,17 +227,16 @@ class NotStupidRandomResizedCrop:
         Crops a section of the image with shape d*img.shape, where
         scale[0] <= d <= scale[1], at some random coordinate in the image."""
     def __init__(self, scale=(0.5,1.)):
-        self.generator = torch.manual_seed(RNG_SEED)
         self.scale = scale
 
     def __call__(self, x):
         np_x = np.array(x)
-        rand1 = torch.rand(1, generator=self.generator).item()
+        rand1 = torch.rand(1).item()
         scale = rand1 * (self.scale[1] - self.scale[0]) + self.scale[0]
         h, w = np_x.shape[0], np_x.shape[1]
         height = scale * h
         width = scale * w
-        rand2 = torch.rand(1, generator=self.generator).item()
+        rand2 = torch.rand(1).item()
         y_space = h - height
         x_space = w - width
         left = int(rand2 * x_space)
