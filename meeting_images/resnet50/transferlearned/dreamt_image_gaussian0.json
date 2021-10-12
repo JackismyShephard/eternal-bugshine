@@ -1,0 +1,59 @@
+{
+    "model": {
+        "name": "resnet50",
+        "pretrained": true,
+        "num_classes": 197,
+        "train_iters": 19,
+        "test_acc": 88.4978229317852,
+        "batch_size": 32,
+        "dataset_folder": "./data/beetles/images/",
+        "dataset_rng_seed": 16843009,
+        "dataset_transform": "Compose(\n    RandomVerticalFlip(p=0.5)\n    RandomRotation(degrees=[-3.0, 3.0], interpolation=nearest, expand=False, fill=255)\n    <src.utils.dataset.NotStupidRandomResizedCrop object at 0x7f045c071b80>\n    <src.utils.dataset.RandomizeBackground object at 0x7f045c0714f0>\n    Compose(\n    Resize(size=(224, 448), interpolation=bilinear, max_size=None, antialias=None)\n    ToTensor()\n    Normalize(mean=[0.8442649  0.82529384 0.82333773], std=[0.28980458 0.32252666 0.3240354 ])\n)\n)",
+        "train_stopped_early": false,
+        "training_stopped_early": true
+    },
+    "out_info": [
+        [
+            "fc",
+            null
+        ]
+    ],
+    "mean": [
+        0.8442649245262146,
+        0.8252938389778137,
+        0.823337733745575
+    ],
+    "std": [
+        0.2898045778274536,
+        0.3225266635417938,
+        0.3240354061126709
+    ],
+    "input_img_path": null,
+    "target_shape": [
+        200,
+        400
+    ],
+    "noise": "gaussian",
+    "ratio": 1.5,
+    "levels": 3,
+    "shift_size": 32,
+    "num_iters": 100,
+    "lr": 0.09,
+    "loss_type": "norm",
+    "loss_red": "mean",
+    "norm_type": "standardize",
+    "eps": 1e-07,
+    "smooth": true,
+    "kernel_size": 9,
+    "smooth_coef": 0.5,
+    "clamp_type": "standardize",
+    "figsize": [
+        15,
+        15
+    ],
+    "save_interval": 1,
+    "dpi": 200,
+    "img_overwrite": false,
+    "video_overwrite": false,
+    "device": "cuda"
+}
