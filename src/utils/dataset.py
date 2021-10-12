@@ -226,9 +226,9 @@ class NotStupidRandomResizedCrop:
         Crops a section of a PIL image with shape d*img.shape, where
         min_scale/100 <= d <= max_scale/100, at some random coordinate in the image."""
     def __init__(self, min_scale=50, max_scale=100):
+        self.rng = np.random.default_rng()
         self.min_scale = min_scale
         self.max_scale = max_scale
-        self.rng = np.random.default_rng()
 
     def __call__(self, x):
         np_x = np.array(x)
@@ -236,57 +236,65 @@ class NotStupidRandomResizedCrop:
         (h, w, _) = np_x.shape
         height = scale * h
         width = scale * w
-        rand2 = self.rng.random()
-        y_space = h - height
-        x_space = w - width
-        left = int(rand2 * x_space)
-        top = int(rand2 * y_space)
+        x_pos = self.rng.random()
+        y_pos = self.rng.random()
+        y_max = h - height
+        x_max = w - width
+        left = int(x_pos * x_max)
+        top = int(y_pos * y_max)
         x = transforms.functional.crop(x, top, left, height, width)
         x = transforms.functional.resize(x, [h,w])
         return x
 
 class RandomizeBackgroundGraytone:
     """Replace beetle PIL image background color with a random graytone."""
-    def __init__(self, cutoff: float):
-        self.cutoff = cutoff
+    def __init__(self, cutoff: float, min: float = 0, max: float = 1):
         self.rng = np.random.default_rng()
+        self.cutoff = cutoff
+        self.min = min
+        self.max = max
     def __call__(self, x):
         np_x = np.array(x) / 255
         np_x_gray = (np.sum(np_x, axis=2)) / 3
         mask = np_x_gray > self.cutoff
         mask = np.dstack([mask, mask, mask])
-        new_bg = np.zeros(np_x.shape) + self.rng.random()
-        np_x = np.where(mask == True, (new_bg * 255).astype('uint8'), (np_x * 255).astype('uint8'))
+        color = self.rng.integers(int(self.min * 255), int(self.max * 255))
+        np_x = np.where(mask == True, color, (np_x * 255).astype('uint8'))
         return Image.fromarray(np_x)
 
 class RandomizeBackgroundRGBNoise:
     """Replace beetle PIL image background color with RGB noise."""
     def __init__(self, cutoff: float):
-        self.cutoff = cutoff
         self.rng = np.random.default_rng()
+        self.cutoff = cutoff
+        
     def __call__(self, x):
         np_x = np.array(x) / 255
         np_x_gray = (np.sum(np_x, axis=2)) / 3
         mask = np_x_gray > self.cutoff
         mask = np.dstack([mask, mask, mask])
         new_bg = self.rng.random(np_x.shape)
-        np_x = np.where(mask == True, (new_bg * 255).astype('uint8'), (np_x * 255).astype('uint8'))
+        np_x = np.where(mask == True, new_bg, np_x)
+        np_x = (np_x * 255).astype('uint8')
         return Image.fromarray(np_x)
 
 #TODO allow holes to be filled with noise or perhaps solid colors?
 class CoarseDropout:
     def __init__(self, min_holes = 0, max_holes=10, min_height=5, max_height=10, min_width=5, max_width=10):
         self.rng = np.random.default_rng()
-        self.holes = self.rng.integers(min_holes, max_holes)
+        self.min_holes = min_holes
+        self.max_holes = max_holes
         self.max_height = max_height
         self.max_width = max_width
         self.min_height = min_height
         self.min_width = min_width
+
     def __call__(self, x):
         np_x = np.array(x)
         (h, w, _) = np_x.shape
         mask = np.ones(np_x.shape)
-        for _ in range(self.holes):
+        holes = self.rng.integers(self.min_holes, self.max_holes)
+        for _ in range(holes):
             width = self.rng.integers(self.min_width, self.max_width)
             height = self.rng.integers(self.min_height, self.max_height)
             x = self.rng.integers(0, w)
