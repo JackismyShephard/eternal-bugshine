@@ -1,0 +1,11 @@
+{
+    "name": "resnet18",
+    "pretrained": false,
+    "num_classes": 197,
+    "train_iters": 38465,
+    "test_acc": 90.71117561683599,
+    "batch_size": 32,
+    "dataset_folder": "./data/beetles/images/",
+    "dataset_rng_seed": 16843009,
+    "dataset_transform": "Compose(\n    RandomVerticalFlip(p=0.5)\n    RandomRotation(degrees=[-3.0, 3.0], interpolation=nearest, expand=False, fill=255)\n    <src.utils.dataset.NotStupidRandomResizedCrop object at 0x7f03ca084ca0>\n    <src.utils.dataset.RandomizeBackground object at 0x7f03ca084df0>\n    Compose(\n    Resize(size=(224, 448), interpolation=bilinear, max_size=None, antialias=None)\n    ToTensor()\n    Normalize(mean=[0.8442649  0.82529384 0.82333773], std=[0.28980458 0.32252666 0.3240354 ])\n)\n)"
+}
