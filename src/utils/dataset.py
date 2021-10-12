@@ -204,10 +204,9 @@ def get_dataloaders(train_data, val_data, test_data, batch_size = 32, num_worker
     return {'train': train_loader, 'val': val_loader, 'test': test_loader}
 
 class RandomizeBackground:
-    """Replace beetle image tensor background color with a random color."""
-    def __init__(self, cutoff, noise_type=None):
+    """Replace beetle PIL image background color with a random color."""
+    def __init__(self, cutoff: float):
         self.cutoff = cutoff
-        self.noise_type = noise_type
 
     def __call__(self, x):
         np_x = np.array(x) / 255
@@ -219,26 +218,25 @@ class RandomizeBackground:
         g = torch.rand(1).item()
         b = torch.rand(1).item()
         new_bg = get_solid_color([r,g,b], [np_x.shape[0], np_x.shape[1]])
-        if not self.noise_type == None:
-            new_bg = add_noise('gaussian',new_bg)
         np_x = np.where(mask == True, (new_bg * 255).astype('uint8'), (np_x * 255).astype('uint8'))
         return Image.fromarray(np_x)
 
 class NotStupidRandomResizedCrop:
     """A RandomResizedCrop reimplementation that does just what we need it to do.
-        Crops a section of the image with shape d*img.shape, where
-        scale[0] <= d <= scale[1], at some random coordinate in the image."""
-    def __init__(self, scale=(0.5,1.)):
-        self.scale = scale
+        Crops a section of a PIL image with shape d*img.shape, where
+        min_scale/100 <= d <= max_scale/100, at some random coordinate in the image."""
+    def __init__(self, min_scale=50, max_scale=100):
+        self.min_scale = min_scale
+        self.max_scale = max_scale
+        self.rng = np.random.default_rng()
 
     def __call__(self, x):
         np_x = np.array(x)
-        rand1 = torch.rand(1).item()
-        scale = rand1 * (self.scale[1] - self.scale[0]) + self.scale[0]
-        h, w = np_x.shape[0], np_x.shape[1]
+        scale = self.rng.integers(low=self.min_scale, high=self.max_scale) / 100
+        (h, w, _) = np_x.shape
         height = scale * h
         width = scale * w
-        rand2 = torch.rand(1).item()
+        rand2 = self.rng.random()
         y_space = h - height
         x_space = w - width
         left = int(rand2 * x_space)
@@ -247,8 +245,32 @@ class NotStupidRandomResizedCrop:
         x = transforms.functional.resize(x, [h,w])
         return x
 
-#IMPLEMENT RGB noise background transform
+class RandomizeBackgroundGraytone:
+    """Replace beetle PIL image background color with a random graytone."""
+    def __init__(self, cutoff: float):
+        self.cutoff = cutoff
+        self.rng = np.random.default_rng()
+    def __call__(self, x):
+        np_x = np.array(x) / 255
+        np_x_gray = (np.sum(np_x, axis=2)) / 3
+        mask = np_x_gray > self.cutoff
+        mask = np.dstack([mask, mask, mask])
+        new_bg = np.zeros(np_x.shape) + self.rng.random()
+        np_x = np.where(mask == True, (new_bg * 255).astype('uint8'), (np_x * 255).astype('uint8'))
+        return Image.fromarray(np_x)
 
-#IMPLEMENT graytone background transform
+class RandomizeBackgroundRGBNoise:
+    """Replace beetle PIL image background color with RGB noise."""
+    def __init__(self, cutoff: float):
+        self.cutoff = cutoff
+        self.rng = np.random.default_rng()
+    def __call__(self, x):
+        np_x = np.array(x) / 255
+        np_x_gray = (np.sum(np_x, axis=2)) / 3
+        mask = np_x_gray > self.cutoff
+        mask = np.dstack([mask, mask, mask])
+        new_bg = self.rng.random(np_x.shape)
+        np_x = np.where(mask == True, (new_bg * 255).astype('uint8'), (np_x * 255).astype('uint8'))
+        return Image.fromarray(np_x)
 
 #IMPLEMENT coarse dropout transform. see https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.CoarseDropout
