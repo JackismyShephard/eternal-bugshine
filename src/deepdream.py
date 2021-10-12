@@ -39,6 +39,11 @@ def dream_process(config, img = None):
     
     return output_images
 
+#TODO find a practical approach to storing gifs and model data outside of git, preferrably programatically
+#TODO research realtime rendering of image outputs from dreamspace
+#TODO consider if dreamspace should be a class
+#REFACTOR dreamspace to generalize scale space function
+#IMPLEMENT learning rate per scale level
 def dreamspace(img, model, config):
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
@@ -68,7 +73,7 @@ def dreamspace(img, model, config):
     
     return output_images
 
-
+#TODO figure out if rescaling leaves artifacts in output image
 def scale_level(img, start_size, level, ratio=1.8,
                 levels=4, device='cuda'):
     exponent = level - levels + 1
@@ -199,3 +204,7 @@ class CascadeGaussianSmoothing(nn.Module):
         grad3 = self.conv(input, weight=self.weight3, groups=num_in_channels)
 
         return (grad1 + grad2 + grad3) / 3
+
+#IMPLEMENT Laplacian deblurring scale space function
+
+#IMPLEMENT Gaussian kernel convolution scale space function

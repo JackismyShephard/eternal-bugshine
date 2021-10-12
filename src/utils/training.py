@@ -11,6 +11,10 @@ import torch
 from .visual import multiplot
 from .config import RNG_SEED
 
+#TODO automate model toolchain
+
+
+#IMPLEMENT smarter early stopping that calculates graph trend based on last N values
 class EarlyStopping():
     """
     Early stopping to stop the training when the loss does not improve after
@@ -47,6 +51,8 @@ class EarlyStopping():
                     print('INFO: I have no time for your silly games. Stopping early.')
                     self.early_stop = True
 
+
+#IMPLEMENT rolling average
 def fit(model, data_loaders, dataset_sizes, criterion,
         optimizer, early_stopping, clear='terminal',
         num_epochs=100, device="cuda", plot=False, 
@@ -145,7 +151,7 @@ def fit(model, data_loaders, dataset_sizes, criterion,
                 save_model(model, model_path, optim=None,dataloaders=data_loaders, train_metrics=metrics)
                 model.load_state_dict(temp_state_dict)
             if early_stopping.early_stop:
-                model.aux_dict['training_stopped_early'] = True
+                model.aux_dict['train_stopped_early'] = True
                 break
     except KeyboardInterrupt:
         print("Training interrupted.")
@@ -208,7 +214,7 @@ def save_model(model, path, optim=None,dataloaders=None, train_metrics=None):
     if optim is not None:
         torch.save(optim.state_dict(), path + '_optim.pt')
     if dataloaders is not None:
-        torch.torch.save(dataloaders, path + '_dataloaders.pt')
+        torch.save(dataloaders, path + '_dataloaders.pt')
     if train_metrics is not None:
         np.save(path + '_train_metrics.npy', train_metrics)
 

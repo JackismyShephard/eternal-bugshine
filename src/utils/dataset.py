@@ -247,3 +247,8 @@ class NotStupidRandomResizedCrop:
         x = transforms.functional.resize(x, [h,w])
         return x
 
+#IMPLEMENT RGB noise background transform
+
+#IMPLEMENT graytone background transform
+
+#IMPLEMENT coarse dropout transform. see https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.CoarseDropout

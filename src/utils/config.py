@@ -53,6 +53,11 @@ DREAM_CONFIG = {
     'device': 'cuda'
 }
 
+#TODO construct model config for model toolchain simplification
+MODEL_CONFIG = {
+    'model_name': None,
+
+}
 
 def get_new_config(param_dict, old_config=DREAM_CONFIG):
 
