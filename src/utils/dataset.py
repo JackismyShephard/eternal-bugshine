@@ -273,4 +273,24 @@ class RandomizeBackgroundRGBNoise:
         np_x = np.where(mask == True, (new_bg * 255).astype('uint8'), (np_x * 255).astype('uint8'))
         return Image.fromarray(np_x)
 
-#IMPLEMENT coarse dropout transform. see https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.CoarseDropout
+#TODO allow holes to be filled with noise or perhaps solid colors?
+class CoarseDropout:
+    def __init__(self, min_holes = 0, max_holes=10, min_height=5, max_height=10, min_width=5, max_width=10):
+        self.rng = np.random.default_rng()
+        self.holes = self.rng.integers(min_holes, max_holes)
+        self.max_height = max_height
+        self.max_width = max_width
+        self.min_height = min_height
+        self.min_width = min_width
+    def __call__(self, x):
+        np_x = np.array(x)
+        (h, w, _) = np_x.shape
+        mask = np.ones(np_x.shape)
+        for _ in range(self.holes):
+            width = self.rng.integers(self.min_width, self.max_width)
+            height = self.rng.integers(self.min_height, self.max_height)
+            x = self.rng.integers(0, w)
+            y = self.rng.integers(0, h)
+            mask[y:y+height,x:x+width,:] = 0
+        np_x = (mask * np_x).astype('uint8')
+        return Image.fromarray(np_x)
