@@ -1,0 +1,53 @@
+{
+    "model": {
+        "name": "resnet50",
+        "pretrained": true,
+        "num_classes": 197,
+        "train_iters": 0,
+        "test_acc": null
+    },
+    "out_info": [
+        [
+            "fc",
+            null
+        ]
+    ],
+    "mean": [
+        0.8442649245262146,
+        0.8252938389778137,
+        0.823337733745575
+    ],
+    "std": [
+        0.2898045778274536,
+        0.3225266635417938,
+        0.3240354061126709
+    ],
+    "input_img_path": null,
+    "target_shape": [
+        200,
+        400
+    ],
+    "noise": "correlated_gaussian",
+    "ratio": 1.5,
+    "levels": 3,
+    "shift_size": 32,
+    "num_iters": 100,
+    "lr": 0.09,
+    "loss_type": "norm",
+    "loss_red": "mean",
+    "norm_type": "standardize",
+    "eps": 1e-07,
+    "smooth": true,
+    "kernel_size": 9,
+    "smooth_coef": 0.5,
+    "clamp_type": "standardize",
+    "figsize": [
+        15,
+        15
+    ],
+    "save_interval": 1,
+    "dpi": 200,
+    "img_overwrite": false,
+    "video_overwrite": false,
+    "device": "cuda"
+}
