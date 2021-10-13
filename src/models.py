@@ -84,8 +84,7 @@ class HookedModel(torch.nn.Module):
         for (name, index) in target_dict.items():
             activation = self._activations[name].clone().to('cpu')
             if index is not None:
-                (y,x) = index
-                res.append(activation[y][x])
+                res.append(activation[0][index]) #as far as i understand the first axis in a tensor contains nothing interesting, so always index past this
             else:
                 res.append(activation)
         self._activations.clear()
