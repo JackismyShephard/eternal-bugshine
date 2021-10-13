@@ -57,6 +57,18 @@ def image_folder_dims(data_folder, ext = 'jpg', load_path = None, save_path = No
 def image_folder_classes(data_folder):
      return len(next(os.walk(data_folder))[1])
 
+def list_classes(data_folder):
+    dir = os.walk(data_folder)
+    next(dir)
+    for i, entry in enumerate(dir):
+        print('{}: {}'.format(i, entry[0]))
+
+def show_class_name(i, data_folder):
+    dir = os.walk(data_folder)
+    next(dir)
+    dir = list(dir)
+    print('{}: {}'.format(i, dir[0][0]))
+
 def split_dataset(dataset, train_ratio, val_ratio):
 
     train_size = int(train_ratio * len(dataset))
