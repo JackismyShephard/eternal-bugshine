@@ -1,8 +1,12 @@
+import typing as t
+import torch
 import numpy as np
+from numpy import typing as npt
 import copy
 import os
 import json
 from ..models import get_model, Exposed_model
+from .custom_types import *
 
 RNG_SEED = 0x1010101
 
@@ -16,11 +20,12 @@ BEETLENET_PATH = 'data/beetles/images/'
 
 RESNET50 = Exposed_model(get_model('resnet50'), flatten_layer = 'fc')
 
-#tensor indexing: tensor[torch.tensor([1, 2])]
-DREAM_CONFIG = {
+
+
+DREAM_CONFIG: DreamConfig = {
     'model': RESNET50,
-    'out_info': ['fc'],
-    'out_info_test': {'fc': None}, #None = whole layer, 
+    'model_aux_dict': None,
+    'out_info': {'fc': None}, #None = whole layer, otherwise specify index as tuple (y,x).
     'mean': IMAGENET_MEAN,
     'std': IMAGENET_STD,
 
@@ -52,7 +57,7 @@ DREAM_CONFIG = {
     'video_path': None,
     'video_overwrite' : False,
  
-    'device': 'cuda'
+    'device': None
 }
 
 #TODO construct model config for model toolchain simplification
@@ -67,7 +72,7 @@ MODEL_CONFIG = {
 
 }
 
-def get_new_config(param_dict, old_config=DREAM_CONFIG):
+def get_new_config(param_dict, old_config: DreamConfig = DREAM_CONFIG):
 
     config = copy.deepcopy(old_config)
     for (name, param) in param_dict.items():
@@ -86,7 +91,7 @@ def extend_path(path, overwrite=False):
         return (root + str(i) + ext)
 
 
-def save_config(config, path):
+def save_config(config: DreamConfig, path):
     (root, _) = os.path.splitext(path)
     json_path = root + '.json'
     new_config = copy.deepcopy(config)
@@ -94,7 +99,7 @@ def save_config(config, path):
         new_config[param] = new_config[param].tolist()
     for param in ['output_img_path', 'video_path', 'show']:
         new_config.pop(param)
-    new_config['device'] = str(new_config['device'])
-    new_config['model'] = new_config['model'].aux_dict
+    new_config['device'] = new_config['device']
+    new_config['model_aux_dict'] = new_config['model'].aux_dict
     with open(json_path, 'w') as json_file:
         json.dump(new_config, json_file, indent = 4)
