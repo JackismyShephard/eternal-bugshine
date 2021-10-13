@@ -16,9 +16,11 @@ BEETLENET_PATH = 'data/beetles/images/'
 
 RESNET50 = Exposed_model(get_model('resnet50'), flatten_layer = 'fc')
 
+#tensor indexing: tensor[torch.tensor([1, 2])]
 DREAM_CONFIG = {
     'model': RESNET50,
     'out_info': ['fc'],
+    'out_info_test': {'fc': None}, #None = whole layer, 
     'mean': IMAGENET_MEAN,
     'std': IMAGENET_STD,
 
