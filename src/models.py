@@ -59,6 +59,7 @@ class HookedModel(torch.nn.Module):
     def __init__(self, model):
         super().__init__()
         self.model = copy.deepcopy(model)
+        self.aux_dict = model.aux_dict
         self.hooks = {}
         self.hook_results = {}
         self.activations = {}
