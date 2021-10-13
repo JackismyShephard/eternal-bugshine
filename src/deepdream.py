@@ -27,6 +27,7 @@ def dream_process(config, img = None):
 
     if config['output_img_path'] is not None:
         path = extend_path(config['output_img_path'], config['img_overwrite'])
+        #TODO save_config throws error due to some tensor in the model. not sure how to fix
         save_config(config, path)
         #show_img(output_images[-1], figsize=config['figsize'], show_axis='off',
         #         dpi=config['dpi'], save_path=path, close = True)
@@ -39,7 +40,13 @@ def dream_process(config, img = None):
     
     return output_images
 
+#TODO find a practical approach to storing gifs and model data outside of git, preferrably programatically
+#TODO research realtime rendering of image outputs from dreamspace
+#TODO consider if dreamspace should be a class
+#REFACTOR dreamspace to generalize scale space function
+#IMPLEMENT learning rate per scale level
 def dreamspace(img, model, config):
+    #model.register_hooks(config['out_info']) #register for activations in dream_ascent
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
 
@@ -54,7 +61,7 @@ def dreamspace(img, model, config):
             deshifted_tensor = random_shift(dreamt_tensor, h_shift,
                                              w_shift, undo=True, requires_grad = True)
 
-            img = tensor_to_image(deshifted_tensor)
+            img = tensor_to_image(deshifted_tensor.clone().detach())
             output_image = postprocess_image(img, config['mean'],config['std'])
             if config['show'] == True:
                 clear_output(wait=True)
@@ -65,10 +72,11 @@ def dreamspace(img, model, config):
                 output_images.append(output_image)
 
             scaled_tensor = deshifted_tensor
-    
+    #model.unregister_hooks() #unregister hooks used in dream_ascent
+    #model.clear_activations()
     return output_images
 
-
+#TODO figure out if rescaling leaves artifacts in output image
 def scale_level(img, start_size, level, ratio=1.8,
                 levels=4, device='cuda'):
     exponent = level - levels + 1
@@ -80,10 +88,10 @@ def scale_level(img, start_size, level, ratio=1.8,
 
 def dream_ascent(tensor, model, iter, config):
     ## get activations
-    activations = model(tensor, config['out_info'])
+    _, activations = model(tensor, config['out_info'])
     ### calculate loss on desired layers
     losses = []
-    for layer_activation in activations.values():
+    for layer_activation in activations:
         if config['loss_type'] == 'norm':
             loss_part = torch.linalg.norm(layer_activation)
         elif config['loss_type'] == 'mean':
@@ -199,3 +207,7 @@ class CascadeGaussianSmoothing(nn.Module):
         grad3 = self.conv(input, weight=self.weight3, groups=num_in_channels)
 
         return (grad1 + grad2 + grad3) / 3
+
+#IMPLEMENT Laplacian deblurring scale space function
+
+#IMPLEMENT Gaussian kernel convolution scale space function

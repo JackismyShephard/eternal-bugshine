@@ -204,10 +204,9 @@ def get_dataloaders(train_data, val_data, test_data, batch_size = 32, num_worker
     return {'train': train_loader, 'val': val_loader, 'test': test_loader}
 
 class RandomizeBackground:
-    """Replace beetle image tensor background color with a random color."""
-    def __init__(self, cutoff, noise_type=None):
+    """Replace beetle PIL image background color with a random color."""
+    def __init__(self, cutoff: float):
         self.cutoff = cutoff
-        self.noise_type = noise_type
 
     def __call__(self, x):
         np_x = np.array(x) / 255
@@ -219,31 +218,88 @@ class RandomizeBackground:
         g = torch.rand(1).item()
         b = torch.rand(1).item()
         new_bg = get_solid_color([r,g,b], [np_x.shape[0], np_x.shape[1]])
-        if not self.noise_type == None:
-            new_bg = add_noise('gaussian',new_bg)
-        np_x = np.where(mask == True, (new_bg * 255).astype('uint8'), (np_x * 255).astype('uint8'))
+        np_x = np.where(mask == True, new_bg, np_x)
+        np_x = (np_x * 255).astype('uint8')
         return Image.fromarray(np_x)
 
 class NotStupidRandomResizedCrop:
     """A RandomResizedCrop reimplementation that does just what we need it to do.
-        Crops a section of the image with shape d*img.shape, where
-        scale[0] <= d <= scale[1], at some random coordinate in the image."""
-    def __init__(self, scale=(0.5,1.)):
-        self.scale = scale
+        Crops a section of a PIL image with shape d*img.shape, where
+        min_scale/100 <= d <= max_scale/100, at some random coordinate in the image."""
+    def __init__(self, min_scale=50, max_scale=100):
+        self.rng = np.random.default_rng()
+        self.min_scale = min_scale
+        self.max_scale = max_scale
 
     def __call__(self, x):
         np_x = np.array(x)
-        rand1 = torch.rand(1).item()
-        scale = rand1 * (self.scale[1] - self.scale[0]) + self.scale[0]
-        h, w = np_x.shape[0], np_x.shape[1]
+        scale = self.rng.integers(low=self.min_scale, high=self.max_scale) / 100
+        (h, w, _) = np_x.shape
         height = scale * h
         width = scale * w
-        rand2 = torch.rand(1).item()
-        y_space = h - height
-        x_space = w - width
-        left = int(rand2 * x_space)
-        top = int(rand2 * y_space)
+        x_pos = self.rng.random()
+        y_pos = self.rng.random()
+        y_max = h - height
+        x_max = w - width
+        left = int(x_pos * x_max)
+        top = int(y_pos * y_max)
         x = transforms.functional.crop(x, top, left, height, width)
         x = transforms.functional.resize(x, [h,w])
         return x
 
+class RandomizeBackgroundGraytone:
+    """Replace beetle PIL image background color with a random graytone."""
+    def __init__(self, cutoff: float, min: float = 0, max: float = 1):
+        self.rng = np.random.default_rng()
+        self.cutoff = cutoff
+        self.min = min
+        self.max = max
+    def __call__(self, x):
+        np_x = np.array(x) / 255
+        np_x_gray = (np.sum(np_x, axis=2)) / 3
+        mask = np_x_gray > self.cutoff
+        mask = np.dstack([mask, mask, mask])
+        color = self.rng.integers(int(self.min * 255), int(self.max * 255))
+        np_x = np.where(mask == True, color, (np_x * 255).astype('uint8'))
+        return Image.fromarray(np_x)
+
+class RandomizeBackgroundRGBNoise:
+    """Replace beetle PIL image background color with RGB noise."""
+    def __init__(self, cutoff: float):
+        self.rng = np.random.default_rng()
+        self.cutoff = cutoff
+        
+    def __call__(self, x):
+        np_x = np.array(x) / 255
+        np_x_gray = (np.sum(np_x, axis=2)) / 3
+        mask = np_x_gray > self.cutoff
+        mask = np.dstack([mask, mask, mask])
+        new_bg = self.rng.random(np_x.shape)
+        np_x = np.where(mask == True, new_bg, np_x)
+        np_x = (np_x * 255).astype('uint8')
+        return Image.fromarray(np_x)
+
+#TODO allow holes to be filled with noise or perhaps solid colors?
+class CoarseDropout:
+    def __init__(self, min_holes = 0, max_holes=10, min_height=5, max_height=10, min_width=5, max_width=10):
+        self.rng = np.random.default_rng()
+        self.min_holes = min_holes
+        self.max_holes = max_holes
+        self.max_height = max_height
+        self.max_width = max_width
+        self.min_height = min_height
+        self.min_width = min_width
+
+    def __call__(self, x):
+        np_x = np.array(x)
+        (h, w, _) = np_x.shape
+        mask = np.ones(np_x.shape)
+        holes = self.rng.integers(self.min_holes, self.max_holes)
+        for _ in range(holes):
+            width = self.rng.integers(self.min_width, self.max_width)
+            height = self.rng.integers(self.min_height, self.max_height)
+            x = self.rng.integers(0, w)
+            y = self.rng.integers(0, h)
+            mask[y:y+height,x:x+width,:] = 0
+        np_x = (mask * np_x).astype('uint8')
+        return Image.fromarray(np_x)
