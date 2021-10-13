@@ -218,7 +218,8 @@ class RandomizeBackground:
         g = torch.rand(1).item()
         b = torch.rand(1).item()
         new_bg = get_solid_color([r,g,b], [np_x.shape[0], np_x.shape[1]])
-        np_x = np.where(mask == True, (new_bg * 255).astype('uint8'), (np_x * 255).astype('uint8'))
+        np_x = np.where(mask == True, new_bg, np_x)
+        np_x = (np_x * 255).astype('uint8')
         return Image.fromarray(np_x)
 
 class NotStupidRandomResizedCrop:
