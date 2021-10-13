@@ -77,11 +77,17 @@ class HookedModel(torch.nn.Module):
         return hook
 
     #TODO in case we want to apply different weights to different activations, perhaps this should return a dictionary instead
-    def _get_activations(self):
+    #TODO not sure if to('cpu') slows us down. is there a way to encapsulate the behavior of _get_activations without this?
+    def _get_activations(self, target_dict):
         """Clones the values returned by the forward hooks and returns them as a list"""
         res = []
-        for val in self._activations.values():
-            res.append(val.clone())
+        for (name, index) in target_dict.items():
+            activation = self._activations[name].clone().to('cpu')
+            if index is not None:
+                (y,x) = index
+                res.append(activation[y][x])
+            else:
+                res.append(activation)
         self._activations.clear()
         return res
 
@@ -97,14 +103,14 @@ class HookedModel(torch.nn.Module):
             self._hooks[module_name].remove()
         self._hooks.clear()
             
-    def forward(self, x: torch.Tensor, targets):
+    def forward(self, x: torch.Tensor, target_dict):
         """"Runs forward on the internal model and returns activations for any model targets specified.
             targets should be a list of valid module names in the internal model.
             Module names can be found by calling HookedModel.show_modules()"""
-        self._register_hooks(targets)
+        self._register_hooks(target_dict.keys())
         x = self.model.forward(x)
         self._unregister_hooks()
-        return x, self._get_activations()
+        return x, self._get_activations(target_dict)
 
 class Dreamnet50(Exposed_model):
     def __init__(self, model):
