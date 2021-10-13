@@ -18,7 +18,7 @@ RESNET50 = Exposed_model(get_model('resnet50'), flatten_layer = 'fc')
 
 DREAM_CONFIG = {
     'model': RESNET50,
-    'out_info': [('fc', None)],
+    'out_info': ['fc'],
     'mean': IMAGENET_MEAN,
     'std': IMAGENET_STD,
 
@@ -55,7 +55,13 @@ DREAM_CONFIG = {
 
 #TODO construct model config for model toolchain simplification
 MODEL_CONFIG = {
-    'model_name': None,
+    'model_name': None, #used with load_model
+    'model_architecture': 'resnet34',
+    'dataset_name': None, #should be beetle dataset path by default
+    'dataset_transform': None, #just here for now, will probably be hardcoded in fetch_model or train_model
+    'dataloader_args': {'batch_size':32},
+
+    'optim_args': {'lr': 0.001, 'eps':0.1},
 
 }
 
