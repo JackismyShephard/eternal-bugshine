@@ -61,7 +61,7 @@ class HookedModel(torch.nn.Module):
         self.model = copy.deepcopy(model)
         self.hooks = {}
         self.hook_results = {}
-        self.activation = {}
+        self.activations = {}
     
     def show_modules(self):
         print(list(self.model.named_modules()))
@@ -69,9 +69,13 @@ class HookedModel(torch.nn.Module):
     def _get_activation(self, name):
         # the hook signature
         def hook(model, input, output):
-            self.activation[name] = output.detach()
+            self.activations[name] = output
         return hook
-    
+
+    def register_hook(self, module_string):
+        module = self.model.get_submodule(module_string)
+        self.hooks[module_string] = module.register_forward_hook(self._get_activation(module_string))
+
     def register_hooks(self, module_strings):
         for module_string in module_strings:
             module = self.model.get_submodule(module_string)
