@@ -54,6 +54,41 @@ class Exposed_model(torch.nn.Module):
                         out_activations[name + '_' +
                                         str(out_idxs)] = x[:, out_idxs]
         return out_activations
+
+class HookedModel(torch.nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = copy.deepcopy(model)
+        self.hooks = {}
+        self.hook_results = {}
+        self.activation = {}
+    
+    def show_modules(self):
+        print(list(self.model.named_modules()))
+
+    def _get_activation(self, name):
+        # the hook signature
+        def hook(model, input, output):
+            self.activation[name] = output.detach()
+        return hook
+    
+    def register_hooks(self, module_strings):
+        for module_string in module_strings:
+            module = self.model.get_submodule(module_string)
+            self.hooks[module_string] = module.register_forward_hook(self._get_activation(module_string))
+
+    def unregister_hook(self, name):
+        self.hooks[name].remove()
+        del self.hooks[name]
+
+    def unregister_hooks(self):
+        for hook in self.hooks.values():
+            hook.remove()
+        self.hooks.clear()
+            
+    def forward(self, x):
+        return self.model.forward(x)
+
 class Dreamnet50(Exposed_model):
     def __init__(self, model):
         super().__init__(model, 'fc')
