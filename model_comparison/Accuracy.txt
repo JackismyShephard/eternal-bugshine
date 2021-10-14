@@ -1,0 +1,11 @@
+Resnet 18
+	-Training time:	2.5 hours
+	-Accuracy: 		89.1 %
+
+Resnet 34
+	-Training time:	4.5 hours
+	-Accuracy: 		90.7 %
+	
+Resnet 50
+	-Training time:	8 hours
+	-Accuracy: 		90.0 %
