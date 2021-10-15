@@ -125,7 +125,10 @@ class HookedModel(torch.nn.Module):
     
     def show_modules(self):
         """Prints the named modules in the internal model"""
-        print(list(self.model.named_modules()))
+        all_modules = self.model.named_modules()
+        next(all_modules)
+        for module in all_modules:
+            print(module[0])
 
     def _hook_into(self, name):
         """Returns a hook function meant to be registered with register_forward_hook"""
