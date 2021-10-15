@@ -9,34 +9,34 @@ import torch.nn as nn
 import torch.nn.functional as F
 import cv2 as cv
 from .utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift, save_img
-from .utils.config import extend_path, save_config
+from .utils.config import extend_path, save_image_metadata
 
-def dream_process(config, img = None):
+def dream_process(model, dream_config, model_config, dataset_config, training_config, img = None):
     if img is not None:
         pass
-    elif config['input_img_path'] is not None:
-        img = cv.imread(config['input_img_path'])[:, :, ::-1]
-        img = reshape_image(img, config['target_shape'])
+    elif dream_config['input_img_path'] is not None:
+        img = cv.imread(dream_config['input_img_path'])[:, :, ::-1]
+        img = reshape_image(img, dream_config['target_shape'])
         img = img.astype(np.float32)  # convert from uint8 to float32
         img /= 255.0  # get to [0, 1] range
     else:
-        img = get_noise_image(config['noise'], config['target_shape'])
+        img = get_noise_image(dream_config['noise'], dream_config['target_shape'])
     
-    img = (img - config['mean']) / config['std']
-    output_images = dreamspace(img, config['model'], config)
+    img = (img - dream_config['mean']) / dream_config['std']
+    output_images = dreamspace(img, model, dream_config, model_config)
 
-    if config['output_img_path'] is not None:
-        path = extend_path(config['output_img_path'], config['img_overwrite'])
+    if dream_config['output_img_path'] is not None:
+        path = extend_path(dream_config['output_img_path'], dream_config['img_overwrite'])
         #TODO save_config throws error due to some tensor in the model. not sure how to fix
-        save_config(config, path)
+        save_image_metadata(path, dream_config, model_config, dataset_config, training_config)
         #show_img(output_images[-1], figsize=config['figsize'], show_axis='off',
         #         dpi=config['dpi'], save_path=path, close = True)
         save_img(output_images[-1], path)
 
-    if config['video_path'] is not None:
-        path = extend_path(config['video_path'], config['video_overwrite'])
-        save_config(config, path)
-        make_video(output_images, config['target_shape'], path)
+    if dream_config['video_path'] is not None:
+        path = extend_path(dream_config['video_path'], dream_config['video_overwrite'])
+        save_image_metadata(path, dream_config, model_config, dataset_config, training_config)
+        make_video(output_images, dream_config['target_shape'], path)
     
     return output_images
 
@@ -45,30 +45,30 @@ def dream_process(config, img = None):
 #TODO consider if dreamspace should be a class
 #REFACTOR dreamspace to generalize scale space function
 #IMPLEMENT learning rate per scale level
-def dreamspace(img, model, config):
+def dreamspace(img, model, dream_config, model_config):
     #model.register_hooks(config['out_info']) #register for activations in dream_ascent
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
 
-    for level in range(config['levels']):
+    for level in range(dream_config['levels']):
         scaled_tensor = scale_level(img, start_size, level,
-                                    config['ratio'], config['levels'],  config['device'])
+                                    dream_config['ratio'], dream_config['levels'],  str(model_config['device']))
 
-        for i in range(config['num_iters']):
-            h_shift, w_shift = np.random.randint(-config['shift_size'], config['shift_size'] + 1, 2)
+        for i in range(dream_config['num_iters']):
+            h_shift, w_shift = np.random.randint(-dream_config['shift_size'], dream_config['shift_size'] + 1, 2)
             shifted_tensor = random_shift(scaled_tensor, h_shift, w_shift, requires_grad = True)
-            dreamt_tensor = dream_ascent(shifted_tensor, model, i, config)
+            dreamt_tensor = dream_ascent(shifted_tensor, model, i, dream_config, model_config)
             deshifted_tensor = random_shift(dreamt_tensor, h_shift,
                                              w_shift, undo=True, requires_grad = True)
 
             img = tensor_to_image(deshifted_tensor.clone().detach())
-            output_image = postprocess_image(img, config['mean'],config['std'])
-            if config['show'] == True:
+            output_image = postprocess_image(img, dream_config['mean'],dream_config['std'])
+            if dream_config['show'] == True:
                 clear_output(wait=True)
-                show_img(output_image, figsize=config['figsize'], show_axis='off', 
-                            dpi=config['dpi'])
+                show_img(output_image, figsize=dream_config['figsize'], show_axis='off', 
+                            dpi=dream_config['dpi'])
 
-            if (i % config['save_interval']) == 0:
+            if (i % dream_config['save_interval']) == 0:
                 output_images.append(output_image)
 
             scaled_tensor = deshifted_tensor
@@ -86,22 +86,22 @@ def scale_level(img, start_size, level, ratio=1.8,
     scaled_tensor = image_to_tensor(scaled_img, device, requires_grad=True)
     return scaled_tensor
 
-def dream_ascent(tensor, model, iter, config):
+def dream_ascent(tensor, model, iter, dream_config, model_config):
     ## get activations
-    _, activations = model(tensor, config['out_info'])
+    _, activations = model(tensor, dream_config['out_info'])
     ### calculate loss on desired layers
     losses = []
     for layer_activation in activations:
-        if config['loss_type'] == 'norm':
+        if dream_config['loss_type'] == 'norm':
             loss_part = torch.linalg.norm(layer_activation)
-        elif config['loss_type'] == 'mean':
+        elif dream_config['loss_type'] == 'mean':
             loss_part = torch.mean(layer_activation)
         else:
             MSE = torch.nn.MSELoss(reduction='mean')
             zeros = torch.zeros_like(layer_activation)
             loss = MSE(layer_activation, zeros)
         losses.append(loss_part)
-    if config['loss_red'] == 'mean':
+    if dream_config['loss_red'] == 'mean':
         loss = torch.mean(torch.stack(losses))
     else:
         loss = torch.sum(torch.stack(losses))
@@ -109,33 +109,33 @@ def dream_ascent(tensor, model, iter, config):
     loss.backward()
     grad = tensor.grad.data
     ### gaussian smoothing
-    if config['smooth'] == True:
-        sigma = ((iter + 1) / config['num_iters']
-                 ) * 2.0 + config['smooth_coef']
+    if dream_config['smooth'] == True:
+        sigma = ((iter + 1) / dream_config['num_iters']
+                 ) * 2.0 + dream_config['smooth_coef']
         smooth_grad = CascadeGaussianSmoothing(
-            kernel_size=config['kernel_size'], sigma=sigma,
-            device=config['device'])(grad)
+            kernel_size=dream_config['kernel_size'], sigma=sigma,
+            device=str(model_config['device']))(grad)
     else:
         smooth_grad = grad
     ### normalization of gradient
     g_std = torch.std(smooth_grad)
     g_mean = torch.mean(smooth_grad)
-    if config['norm_type'] == 'standardize':
+    if dream_config['norm_type'] == 'standardize':
         smooth_grad = smooth_grad - g_mean
         smooth_grad = smooth_grad / g_std
     else:
-        smooth_grad /= torch.abs(g_mean + config['eps'])
+        smooth_grad /= torch.abs(g_mean + dream_config['eps'])
 
     ### gradient update ####
-    tensor.data += config['lr'] * smooth_grad
+    tensor.data += dream_config['lr'] * smooth_grad
     tensor.grad.data.zero_()
     ### clamp gradient to avoid it diverging. vanishing/exploding gradient phenomenon?
-    if config['clamp_type'] == 'standardize':
+    if dream_config['clamp_type'] == 'standardize':
         image_min = torch.tensor(
-            (-config['mean'] / config['std']).reshape(1, -1, 1, 1)).to(config['device'])
+            (-dream_config['mean'] / dream_config['std']).reshape(1, -1, 1, 1)).to(str(model_config['device']))
         image_max = torch.tensor(
-            ((1 - config['mean']) / config['std']).reshape(1, -1, 1, 1)).to(config['device'])
-    elif config['clamp_type'] == 'unit':
+            ((1 - dream_config['mean']) / dream_config['std']).reshape(1, -1, 1, 1)).to(str(model_config['device']))
+    elif dream_config['clamp_type'] == 'unit':
         image_min, image_max = 0, 1
     else:
         image_min, image_max = -1, 1

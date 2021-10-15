@@ -4,13 +4,15 @@ import ssl
 import numpy as np
 from PIL import Image
 import torch
+import cv2 as cv
 from torchvision.datasets.utils import download_url, extract_archive
 from torch.utils.data.dataset import Dataset
 from torch.utils.data import random_split, Subset
 from torchvision import transforms
+from torchvision.datasets import ImageFolder
 from sklearn.model_selection import train_test_split
-from .config import BEETLENET_STD, BEETLENET_MEAN, RNG_SEED
-from .visual import add_noise, get_solid_color
+from .config import BEETLENET_STD, BEETLENET_MEAN, BEETLENET_AVERAGE_SHAPE, RNG_SEED
+from .custom_types import *
 
 def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip',
                      zip_name='beetles.zip', folder_name='beetles',
@@ -32,7 +34,6 @@ def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip
     return data_folder
 
 def image_folder_dims(data_folder, ext = 'jpg', load_path = None, save_path = None):
-
     if load_path is not None:
         dims = np.load(load_path)
 
@@ -57,17 +58,29 @@ def image_folder_dims(data_folder, ext = 'jpg', load_path = None, save_path = No
 def image_folder_classes(data_folder):
      return len(next(os.walk(data_folder))[1])
 
-def list_classes(data_folder):
-    dir = os.walk(data_folder)
+def list_classes(dataset_config: DatasetConfig):
+    dir = os.walk(dataset_config['image_folder_path'])
     next(dir)
     for i, entry in enumerate(dir):
         print('{}: {}'.format(i, entry[0]))
 
-def show_class_name(i, data_folder):
-    dir = os.walk(data_folder)
+def show_class_name(i, dataset_config: DatasetConfig):
+    dir = os.walk(dataset_config['image_folder_path'])
     next(dir)
     dir = list(dir)
-    print('{}: {}'.format(i, dir[0][0]))
+    print('class {}: {}'.format(i, dir[i][0]))
+
+def get_class_example_image(i, dataset_config: DatasetConfig):
+    dir = os.walk(dataset_config['image_folder_path'])
+    next(dir)
+    dir = list(dir)
+    path_prefix = dir[i][0]
+    print('Class path/name: {}'.format(path_prefix))
+    dir = os.walk(dir[i][0])
+    dir = list(dir)
+    path_suffix = dir[0][2][0]
+    path = os.path.join(path_prefix, path_suffix)
+    return cv.imread(path)[:, :, ::-1]
 
 def split_dataset(dataset, train_ratio, val_ratio):
 
@@ -92,7 +105,21 @@ def split_dataset_stratified(dataset, train_ratio, val_ratio):
     dataset_sizes = {'train': len(train_data), 'val': len(val_data), 'test': len(test_data)}
     return train_data, val_data, test_data, dataset_sizes
 
-
+def dataset_to_dataloaders(dataset_config: DatasetConfig):
+    """Create dataloaders from dataset images.\n
+       Returns: training_dataset, validation_dataset, testing_dataset"""
+    #FIXME currently assumes all given paths are split with '/'
+    dataset = ImageFolder(dataset_config['image_folder_path'])
+    training_ratio = dataset_config['training_data_ratio']
+    validation_ratio = dataset_config['validation_data_ratio']
+    train_data, val_data, test_data, dataset_sizes = split_dataset_stratified(dataset, training_ratio, validation_ratio)
+    print('dataset sizes: {}'.format(dataset_sizes))
+    transforms = dataset_config['data_augmentations']
+    batch_size = dataset_config['batch_size']
+    num_workers = dataset_config['num_workers']
+    train_dataset, val_dataset, test_dataset = apply_transforms(transforms, train_data, val_data, test_data)
+    dataloaders = get_dataloaders(train_dataset, val_dataset, test_dataset, batch_size, num_workers)
+    return dataloaders, dataset_sizes
 
 def dataset_stats(data_set, num_workers=0, batch_size=32):
 
@@ -166,16 +193,16 @@ def default_transform(train_data, val_data, test_data, shape = (224, 448),
     return train_data_T, val_data_T, test_data_T
 
 def apply_transforms(transform_list, train_data, val_data , test_data):
-    default_shape = (224, 448)
+    default_shape = BEETLENET_AVERAGE_SHAPE
     default_mean = BEETLENET_MEAN
     default_std  = BEETLENET_STD
-
+    
     default_transforms = transforms.Compose([
         transforms.Resize(default_shape),
         transforms.ToTensor(),
         transforms.Normalize(default_mean, default_std)
     ])
-    transform = transforms.Compose(transform_list + [default_transforms])
+    transform = transforms.Compose(transform_list)
 
     train_data_T = TransformsDataset(train_data, transform)
     val_data_T = TransformsDataset(val_data, default_transforms)
@@ -191,106 +218,3 @@ def get_dataloaders(train_data, val_data, test_data, batch_size = 32, num_worker
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size,
                                             num_workers=num_workers)
     return {'train': train_loader, 'val': val_loader, 'test': test_loader}
-
-class RandomizeBackground:
-    """Replace beetle PIL image background color with a random color."""
-    def __init__(self, cutoff: float):
-        self.cutoff = cutoff
-
-    def __call__(self, img: Image):
-        np_x = np.array(img) / 255
-        np_x_gray = (np.sum(np_x, axis=2)) / 3
-        mask = np_x_gray > self.cutoff
-        mask = np.dstack([mask, mask, mask])
-        
-        r = torch.rand(1).item()
-        g = torch.rand(1).item()
-        b = torch.rand(1).item()
-        new_bg = get_solid_color([r,g,b], [np_x.shape[0], np_x.shape[1]])
-        np_x = np.where(mask == True, new_bg, np_x)
-        np_x = (np_x * 255).astype('uint8')
-        return Image.fromarray(np_x)
-
-class NotStupidRandomResizedCrop:
-    """A RandomResizedCrop reimplementation that does just what we need it to do.
-        Crops a section of a PIL image with shape d*img.shape, where
-        min_scale/100 <= d <= max_scale/100, at some random coordinate in the image."""
-    def __init__(self, min_scale: float = 0.5, max_scale: float = 1):
-        self.rng = np.random.default_rng()
-        self.min_scale = int(min_scale * 100)
-        self.max_scale = int(max_scale * 100)
-
-    def __call__(self, img: Image):
-        np_x = np.array(img)
-        scale = self.rng.integers(low=self.min_scale, high=self.max_scale) / 100
-        (h, w, _) = np_x.shape
-        height = int(scale * h)
-        width = int(scale * w)
-        x_pos = self.rng.random()
-        y_pos = self.rng.random()
-        y_max = h - height
-        x_max = w - width
-        left = int(x_pos * x_max)
-        top = int(y_pos * y_max)
-        img = transforms.functional.crop(img, top, left, height, width)
-        img = transforms.functional.resize(img, [h,w])
-        return img
-
-class RandomizeBackgroundGraytone:
-    """Replace beetle PIL image background color with a random graytone."""
-    def __init__(self, cutoff: float, min: float = 0, max: float = 1):
-        self.rng = np.random.default_rng()
-        self.cutoff = cutoff
-        self.min = min
-        self.max = max
-    def __call__(self, img: Image):
-        np_x = np.array(img) / 255
-        np_x_gray = (np.sum(np_x, axis=2)) / 3
-        mask = np_x_gray > self.cutoff
-        mask = np.dstack([mask, mask, mask])
-        color = self.rng.integers(int(self.min * 255), int(self.max * 255))
-        np_x = np.where(mask == True, color, (np_x * 255).astype('uint8'))
-        return Image.fromarray(np_x)
-
-class RandomizeBackgroundRGBNoise:
-    """Replace beetle PIL image background color with RGB noise."""
-    def __init__(self, cutoff: float):
-        self.rng = np.random.default_rng()
-        self.cutoff = cutoff
-        
-    def __call__(self, img: Image):
-        np_x = np.array(img) / 255
-        np_x_gray = (np.sum(np_x, axis=2)) / 3
-        mask = np_x_gray > self.cutoff
-        mask = np.dstack([mask, mask, mask])
-        new_bg = self.rng.random(np_x.shape)
-        np_x = np.where(mask == True, new_bg, np_x)
-        np_x = (np_x * 255).astype('uint8')
-        return Image.fromarray(np_x)
-
-#TODO allow holes to be filled with noise or perhaps solid colors?
-class CoarseDropout:
-    def __init__(self,  min_holes: int = 0, max_holes:int = 10, 
-                        min_height: int = 5, max_height: int = 10, 
-                        min_width:int = 5, max_width: int = 10):
-        self.rng = np.random.default_rng()
-        self.min_holes = min_holes
-        self.max_holes = max_holes
-        self.max_height = max_height
-        self.max_width = max_width
-        self.min_height = min_height
-        self.min_width = min_width
-
-    def __call__(self, img: Image):
-        np_x = np.array(img)
-        (h, w, _) = np_x.shape
-        mask = np.ones(np_x.shape)
-        holes = self.rng.integers(self.min_holes, self.max_holes)
-        for _ in range(holes):
-            width = self.rng.integers(self.min_width, self.max_width)
-            height = self.rng.integers(self.min_height, self.max_height)
-            x = self.rng.integers(0, w)
-            y = self.rng.integers(0, h)
-            mask[y:y+height,x:x+width,:] = 0
-        np_x = (mask * np_x).astype('uint8')
-        return Image.fromarray(np_x)

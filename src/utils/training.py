@@ -54,7 +54,7 @@ class EarlyStopping():
                     print('INFO: I have no time for your silly games. Stopping early.')
                     self.early_stop = True
     def __repr__(self):
-        args = 'patience = {}, min_delta = {}, min_epochs = {}'
+        args = 'patience = {}, min_delta = {}, min_epochs = {}'.format(self.patience, self.min_delta, self.min_epochs)
         return self.__class__.__name__ + '({})'.format(args)
 
 
@@ -94,13 +94,6 @@ def fit(model, data_loaders, dataset_sizes,
     training_config['optim'] = optimizer
     training_config['early_stopping'] = early_stopping
     training_config['scheduler'] = scheduler
-
-    #TODO save these things in save_training_metadata()
-    model.aux_dict['batch_size'] = data_loaders['train'].batch_size #now in dataset_config['batch_size']
-    model.aux_dict['dataset_folder'] = data_loaders['train'].dataset.subset.dataset.root #now in dataset_config['image_folder_path']
-    model.aux_dict['dataset_rng_seed'] = RNG_SEED #now in dataset_config['rng_seed']
-    model.aux_dict['dataset_transform'] = str(data_loaders['train'].dataset.transform) #now in dataset_config['data_augmentations']
-    model.aux_dict['train_stopped_early'] = False #now in training_config['train_info']['stopped_early']
 
     since = time.time()
     try:
@@ -172,8 +165,8 @@ def fit(model, data_loaders, dataset_sizes,
                 temp_state_dict = copy.deepcopy(model.state_dict())
                 model.load_state_dict(best_model_wts)
                 training_config['train_info']['trained_epochs'] = best_model_epochs
-                save_model(model, model_path, optim=None,dataloaders=data_loaders, train_metrics=metrics)
-                save_training_metadata(model_path, model_config, dataset_config, training_config)
+                save_model(model, model_path+model_config['model_name'], optim=None,dataloaders=data_loaders, train_metrics=metrics)
+                save_training_metadata(model_path+model_config['model_name'], model_config, dataset_config, training_config)
                 model.load_state_dict(temp_state_dict)
             if early_stopping.early_stop:
                 training_config['train_info']['stopped_early'] = True
@@ -189,7 +182,8 @@ def fit(model, data_loaders, dataset_sizes,
     model.load_state_dict(best_model_wts)
     
     training_config['train_info']['trained_epochs'] = best_model_epochs
-    
+    save_model(model, model_path+model_config['model_name'], optim=None,dataloaders=data_loaders, train_metrics=metrics)
+    save_training_metadata(model_path+model_config['model_name'], model_config, dataset_config, training_config)
 
     return metrics
 

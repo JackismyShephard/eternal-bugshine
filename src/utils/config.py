@@ -120,7 +120,12 @@ RESNET18_TRANSFER: ModelConfig = {
     'device':               DEVICE
 }
 
-
+RESNET18_TEST: ModelConfig = {
+    'model_name':           'resnet18_test',
+    'model_architecture':   'resnet18',
+    'pretrained':           False,
+    'device':               DEVICE
+}
 
 DEFAULT_TRAINING: TrainingConfig = {
     'optim':                None,
@@ -204,6 +209,10 @@ def save_training_metadata(path, model_config, dataset_config, training_config):
     new_config['model_info']['device'] = device
     new_config['dataset_info']['mean'] = mean
     new_config['dataset_info']['std'] = std
+    new_config['train_info']['optim'] = str(new_config['train_info']['optim'])
+    new_config['train_info']['criterion'] = str(new_config['train_info']['criterion'])
+    new_config['train_info']['early_stopping'] = str(new_config['train_info']['early_stopping'])
+    new_config['train_info']['scheduler'] = str(new_config['train_info']['scheduler'])
     
     with open(json_path, 'w') as json_file:
         json.dump(new_config, json_file, indent = 4)

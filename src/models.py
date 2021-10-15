@@ -1,10 +1,18 @@
 import torch
 import copy
+import numpy as np
+import json
 import torch.nn as nn
 from torchvision import models
 import typing as t
+from .utils.custom_types import *
+from .utils.config import DEFAULT_METRICS_PATH, DEFAULT_MODEL_PATH
+from .utils.transforms import string_to_class
 
-def get_model(name, pretrained = True, num_classes = None, device = 'cuda'):
+def get_model(model_config: ModelConfig, dataset_config: DatasetConfig = None):
+    name = model_config['model_architecture']
+    pretrained = model_config['pretrained']
+    device = model_config['device']
     if name == 'resnet18':
         model = models.resnet18(pretrained = pretrained)
     elif name == 'resnet34':
@@ -14,16 +22,65 @@ def get_model(name, pretrained = True, num_classes = None, device = 'cuda'):
     else:
         model = models.resnet50(pretrained=pretrained)
     
-    if num_classes is not None:
+    if dataset_config is not None:
+        num_classes = dataset_config['num_classes']
         num_fc = model.fc.in_features
         model.fc = nn.Linear(num_fc, num_classes)
-    
+    else:
+        num_classes = model.fc.in_features
     model = model.to(device)
 
     model.aux_dict = {'name': name, 'pretrained': pretrained, 
                       'num_classes': num_classes, 'train_iters': 0, 'test_acc': None}
 
     return model
+
+
+def load_model(model, path, optim=False, get_dataloaders=False,
+               get_train_metrics=False, device="cuda"):
+    output = []
+    model.load_state_dict(torch.load(
+        path + '_parameters.pt', map_location=device))
+    with open(path + '_aux_dict.json') as json_file:
+        model.aux_dict = json.load(json_file)
+    if optim:
+        optim.load_state_dict(torch.load(
+            path + '_optim.pt', map_location=device))
+    if get_dataloaders:
+        data_loaders = torch.load(
+            path + '_dataloaders.pt', map_location=device)
+        output.append(data_loaders)
+    if get_train_metrics:
+        metrics = np.load(path + '_train_metrics.npy')
+        output.append(metrics)
+    return output
+
+def load_model_weights_and_metrics(model: torch.nn.Module, model_config: ModelConfig):
+    device = model_config['device']
+    path = DEFAULT_MODEL_PATH + model_config['model_name']
+    model.load_state_dict(torch.load(
+        path + '_parameters.pt', map_location=device))
+    metrics = np.load(path + '_train_metrics.npy')
+    with open(path + '_aux_dict.json') as json_file:
+        old_config = json.load(json_file)
+    string_augs = old_config['dataset_info']['data_augmentations']
+    real_augs = [string_to_class(json.loads(x)) for x in string_augs]
+    old_config['dataset_info']['data_augmentations'] = real_augs
+    old_config['dataset_info']['mean'] = np.array(old_config['dataset_info']['mean'])
+    old_config['dataset_info']['std'] = np.array(old_config['dataset_info']['std'])
+    old_config['model_info']['device'] = torch.device(old_config['model_info']['device'])
+    return metrics, old_config['model_info'], old_config['dataset_info'], old_config['train_info']
+
+def save_model(model, path, optim=None,dataloaders=None, train_metrics=None):
+
+    torch.save(model.state_dict(), path + '_parameters.pt')
+    if optim is not None:
+        torch.save(optim.state_dict(), path + '_optim.pt')
+    if dataloaders is not None:
+        torch.save(dataloaders, path + '_dataloaders.pt')
+    if train_metrics is not None:
+        np.save(path + '_train_metrics.npy', train_metrics)
+
 
 class Exposed_model(torch.nn.Module):
     def __init__(self, model, flatten_layer):
@@ -103,8 +160,8 @@ class HookedModel(torch.nn.Module):
         self._hooks.clear()
             
     def forward(self, x: torch.Tensor, target_dict):
-        """"Runs forward on the internal model and returns activations for any model targets specified.
-            targets should be a list of valid module names in the internal model.
+        """Runs forward on the internal model and returns activations for any model targets specified.
+            target_dict should be a dictionary of valid module names and indices in the internal model.
             Module names can be found by calling HookedModel.show_modules()"""
         self._register_hooks(target_dict.keys())
         x = self.model.forward(x)
@@ -118,3 +175,4 @@ class Googledream(Exposed_model):
 
     def __init__(self, model):
         super().__init__(model, 'dropout')
+
