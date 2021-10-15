@@ -8,6 +8,10 @@ from PIL import Image
 from skimage import filters as skfilt
 from skimage.util import random_noise
 
+import io
+from ipywidgets import widgets
+
+
 from .config import BEETLENET_MEAN, BEETLENET_STD, RNG_SEED
 
 
@@ -134,3 +138,37 @@ def save_img(img, path):
 def make_video(images, shape, path):
     imgs = [Image.fromarray(reshape_image(img, shape)) for img in images]
     imgs[0].save(path, save_all=True, append_images=imgs[1:], loop=0)
+
+
+# TODO implement more features and make it more dynamic
+# Mayby TODO make it more pretty
+class Rendering():
+    """
+        Class for rendering dreamt images.
+    """
+
+
+    def __init__(self):
+        self.format = 'png'
+
+        start_image = np.full((200,400,3), 255).astype(np.uint8)
+        image_stream = self.compress_to_bytes(start_image)
+        
+        self.widget = widgets.Image(value = image_stream)
+        display(self.widget)
+
+    # To display the images, they need to be converted to a stream of bytes
+    def compress_to_bytes(self, data):
+        """
+            Helper function to compress image data via PIL/Pillow.
+        """
+        buff = io.BytesIO()
+        img = Image.fromarray(data)    
+        img.save(buff, format=self.format)
+    
+        return buff.getvalue()
+
+    def update(self, image):
+        stream = self.compress_to_bytes(image)
+        self.widget.value = stream
+

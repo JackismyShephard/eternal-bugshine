@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import cv2 as cv
-from .utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift, save_img
+from .utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift, save_img, Rendering
 from .utils.config import extend_path, save_image_metadata
 
 def dream_process(model, dream_config, model_config, dataset_config, training_config, img = None):
@@ -27,6 +27,7 @@ def dream_process(model, dream_config, model_config, dataset_config, training_co
 
     if dream_config['output_img_path'] is not None:
         path = extend_path(dream_config['output_img_path'], dream_config['img_overwrite'])
+        #TODO save_config throws error due to some tensor in the model. not sure how to fix
         save_image_metadata(path, dream_config, model_config, dataset_config, training_config)
         #show_img(output_images[-1], figsize=config['figsize'], show_axis='off',
         #         dpi=config['dpi'], save_path=path, close = True)
@@ -45,8 +46,12 @@ def dream_process(model, dream_config, model_config, dataset_config, training_co
 #REFACTOR dreamspace to generalize scale space function
 #IMPLEMENT learning rate per scale level
 def dreamspace(img, model, dream_config, model_config):
+    #model.register_hooks(config['out_info']) #register for activations in dream_ascent
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
+    render = None
+    if dream_config['show'] == True:
+        render = Rendering()
 
     for level in range(dream_config['levels']):
         scaled_tensor = scale_level(img, start_size, level,
@@ -62,14 +67,17 @@ def dreamspace(img, model, dream_config, model_config):
             img = tensor_to_image(deshifted_tensor.clone().detach())
             output_image = postprocess_image(img, dream_config['mean'],dream_config['std'])
             if dream_config['show'] == True:
-                clear_output(wait=True)
-                show_img(output_image, figsize=dream_config['figsize'], show_axis='off', 
-                            dpi=dream_config['dpi'])
+                render.update(output_image)
+                #clear_output(wait=True)
+                #show_img(output_image, figsize=dream_config['figsize'], show_axis='off', 
+                            #dpi=dream_config['dpi'])
 
             if (i % dream_config['save_interval']) == 0:
                 output_images.append(output_image)
 
             scaled_tensor = deshifted_tensor
+    #model.unregister_hooks() #unregister hooks used in dream_ascent
+    #model.clear_activations()
     return output_images
 
 #TODO figure out if rescaling leaves artifacts in output image
