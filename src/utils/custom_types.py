@@ -92,7 +92,6 @@ class TrainingInformation(t.TypedDict, total=True):
     stopped_early:              bool
     test_acc:                   float
 
-#TODO rework aux_dict into this dictionary class. 
 class TrainingConfig(t.TypedDict, total=True):
     """Describes parameters used for training, besides model and dataset"""
     optim:                      t.Optional[torch.optim.Optimizer]

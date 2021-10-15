@@ -27,7 +27,6 @@ def dream_process(model, dream_config, model_config, dataset_config, training_co
 
     if dream_config['output_img_path'] is not None:
         path = extend_path(dream_config['output_img_path'], dream_config['img_overwrite'])
-        #TODO save_config throws error due to some tensor in the model. not sure how to fix
         save_image_metadata(path, dream_config, model_config, dataset_config, training_config)
         #show_img(output_images[-1], figsize=config['figsize'], show_axis='off',
         #         dpi=config['dpi'], save_path=path, close = True)
@@ -46,7 +45,6 @@ def dream_process(model, dream_config, model_config, dataset_config, training_co
 #REFACTOR dreamspace to generalize scale space function
 #IMPLEMENT learning rate per scale level
 def dreamspace(img, model, dream_config, model_config):
-    #model.register_hooks(config['out_info']) #register for activations in dream_ascent
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
 
@@ -72,8 +70,6 @@ def dreamspace(img, model, dream_config, model_config):
                 output_images.append(output_image)
 
             scaled_tensor = deshifted_tensor
-    #model.unregister_hooks() #unregister hooks used in dream_ascent
-    #model.clear_activations()
     return output_images
 
 #TODO figure out if rescaling leaves artifacts in output image

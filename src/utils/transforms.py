@@ -33,9 +33,6 @@ class RandomizeBackground(torch.nn.Module):
     def __repr__(self):
         args = '[{}]'.format(self.cutoff)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
-    # def __repr__(self):
-    #     args = 'cutoff = {}'.format(self.cutoff)
-    #     return self.__class__.__name__ + '({})'.format(args)
 
 class NotStupidRandomResizedCrop(torch.nn.Module):
     """A RandomResizedCrop reimplementation that does just what we need it to do.
@@ -66,9 +63,6 @@ class NotStupidRandomResizedCrop(torch.nn.Module):
         img = functional.crop(img, top, left, height, width)
         img = functional.resize(img, [h,w])
         return img
-    # def __repr__(self):
-    #     args = 'min_scale = {}, max_scale = {}'.format(self.min_scale, self.max_scale)
-    #     return self.__class__.__name__ + '({})'.format(args)
     def __repr__(self):
         args = '[{},{}]'.format(self.min_scale, self.max_scale)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
@@ -92,9 +86,6 @@ class RandomizeBackgroundGraytone(torch.nn.Module):
         color = self.rng.integers(int(self.min * 255), int(self.max * 255))
         np_x = np.where(mask == True, color, (np_x * 255).astype('uint8'))
         return Image.fromarray(np_x)
-    # def __repr__(self):
-    #     args = 'min = {}, max = {}'.format(self.min, self.max)
-    #     return self.__class__.__name__ + '({})'.format(args)
     def __repr__(self):
         args = '[{},{},{}]'.format(self.cutoff, self.min, self.max)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
@@ -117,9 +108,6 @@ class RandomizeBackgroundRGBNoise(torch.nn.Module):
         np_x = np.where(mask == True, new_bg, np_x)
         np_x = (np_x * 255).astype('uint8')
         return Image.fromarray(np_x)
-    # def __repr__(self):
-    #     args = 'cutoff = {}'.format(self.cutoff)
-    #     return self.__class__.__name__ + '({})'.format(args)
     def __repr__(self):
         args = '[{}]'.format(self.cutoff)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
@@ -153,11 +141,6 @@ class CoarseDropout(torch.nn.Module):
             mask[y:y+height,x:x+width,:] = 0
         np_x = (mask * np_x).astype('uint8')
         return Image.fromarray(np_x)
-    # def __repr__(self):
-    #     args1 = 'min_holes = {}, max_holes = {}'.format(self.min_holes, self.max_holes)
-    #     args2 = 'min_height = {}, max_height = {}'.format(self.min_height, self.max_height)
-    #     args3 = 'min_width = {}, max_width = {}'.format(self.min_width, self.max_width)
-    #     return self.__class__.__name__ + '({}, {}, {})'.format(args1, args2, args3)
     def __repr__(self):
         args = '[{},{},{},{},{},{}]'.format(self.min_holes, self.max_holes, self.min_height, self.max_height, self.min_width, self.max_width)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
@@ -242,4 +225,6 @@ def string_to_class(transform_dict: dict):
             retval = NotStupidRandomResizedCrop(*value)
         elif key == 'CoarseDropout':
             retval = CoarseDropout(*value)
+        else:
+            raise TypeError('key {} is not a recognized transformation class. ')
     return retval

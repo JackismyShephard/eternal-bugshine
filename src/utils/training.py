@@ -14,9 +14,6 @@ from .visual import multiplot
 from .config import RNG_SEED, DEFAULT_MODEL_PATH, DEFAULT_METRICS_PATH, save_training_metadata
 from ..models import save_model
 
-#TODO automate model toolchain
-
-
 #IMPLEMENT smarter early stopping that calculates graph trend based on last N values
 class EarlyStopping():
     """
