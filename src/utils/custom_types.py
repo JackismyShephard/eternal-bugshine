@@ -7,7 +7,7 @@ from numpy import typing as npt
 class DreamConfig(t.TypedDict, total=False):
     """Contains parameters and settings used in the dreamspace function"""
     model:              torch.nn.Module
-    out_info:           t.Dict[str, t.Union[t.Tuple[int, int], int, None]]
+    out_info:           t.Dict[str, t.Union[t.Tuple[int, int], t.List[int], int, None]]
     mean:               npt.NDArray[np.float32]
     std:                npt.NDArray[np.float32]
     input_img_path:     t.Optional[str]
