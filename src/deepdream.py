@@ -49,9 +49,9 @@ def dreamspace(img, model, dream_config, model_config):
     #model.register_hooks(config['out_info']) #register for activations in dream_ascent
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
-    render = None
+
     if dream_config['show'] == True:
-        render = Rendering()
+        render = Rendering(dream_config['target_shape'])
 
     for level in range(dream_config['levels']):
         scaled_tensor = scale_level(img, start_size, level,

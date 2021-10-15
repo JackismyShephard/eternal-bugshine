@@ -148,13 +148,13 @@ class Rendering():
     """
 
 
-    def __init__(self):
+    def __init__(self, shape):
         self.format = 'png'
-
         start_image = np.full((200,400,3), 255).astype(np.uint8)
         image_stream = self.compress_to_bytes(start_image)
-        
-        self.widget = widgets.Image(value = image_stream)
+
+        h, w = shape
+        self.widget = widgets.Image(value = image_stream, width=w*2, height=h*2)
         display(self.widget)
 
     # To display the images, they need to be converted to a stream of bytes
