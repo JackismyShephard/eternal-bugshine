@@ -1,13 +1,62 @@
 {
-    "name": "resnet18",
-    "pretrained": true,
-    "num_classes": 197,
-    "train_iters": 40,
-    "test_acc": 81.93033381712627,
-    "batch_size": 128,
-    "dataset_folder": "./data/beetles/images/",
-    "dataset_rng_seed": 16843009,
-    "dataset_transform": "Compose(\n    RandomVerticalFlip(p=0.5)\n    RandomRotation(degrees=[-3.0, 3.0], interpolation=nearest, expand=False, fill=255)\n    <src.utils.dataset.NotStupidRandomResizedCrop object at 0x7fdb04175e80>\n    <src.utils.dataset.RandomizeBackground object at 0x7fdc94656a90>\n    Compose(\n    Resize(size=(224, 448), interpolation=bilinear, max_size=None, antialias=None)\n    ToTensor()\n    Normalize(mean=[0.8442649  0.82529384 0.82333773], std=[0.28980458 0.32252666 0.3240354 ])\n)\n)",
-    "train_stopped_early": false,
-    "training_stopped_early": true
+    "model_info": {
+        "model_name": "resnet18_transferlearned",
+        "model_architecture": "resnet18",
+        "pretrained": true,
+        "device": "cuda"
+    },
+    "dataset_info": {
+        "image_folder_path": "./data/beetles/images/",
+        "num_classes": 197,
+        "batch_size": 128,
+        "num_workers": 6,
+        "rng_seed": 16843009,
+        "average_image_shape": [
+            224,
+            448
+        ],
+        "mean": [
+            0.8442649245262146,
+            0.8252938389778137,
+            0.823337733745575
+        ],
+        "std": [
+            0.2898045778274536,
+            0.3225266635417938,
+            0.3240354061126709
+        ],
+        "training_data_ratio": 0.8,
+        "validation_data_ratio": 0.5,
+        "data_augmentations": [
+            "{\"RandomVerticalFlip\":[0.5]}",
+            "{\"RandomRotation\":[[-3,3],255]}",
+            "{\"NotStupidRandomResizedCrop\":[0.95,1.0]}",
+            "{\"RandomizeBackground\":[0.95]}",
+            "{\"Resize\":[[224,448]]}",
+            "{\"ToTensor\":[]}",
+            "{\"Normalize\":[[0.8442649, 0.82529384, 0.82333773], [0.28980458, 0.32252666, 0.3240354]]}"
+        ]
+    },
+    "train_info": {
+        "optim": null,
+        "optim_args": {
+            "lr": 0.001,
+            "eps": 0.1
+        },
+        "criterion": null,
+        "scheduler": null,
+        "early_stopping": null,
+        "early_stopping_args": {
+            "min_epochs": 200,
+            "patience": 5,
+            "min_delta": 0
+        },
+        "train_info": {
+            "num_epochs": 400,
+            "trained_epochs": 40,
+            "lr_decay": 0.995,
+            "stopped_early": true,
+            "test_acc": 81.93033381712627
+        }
+    }
 }

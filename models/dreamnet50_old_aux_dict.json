@@ -1,1 +1,0 @@
-{"name": "resnet50", "pretrained": true, "num_classes": 217, "train_iters": 14, "test_acc": 94.10071942446044}
