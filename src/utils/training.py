@@ -8,8 +8,11 @@ import json
 import numpy as np
 import torch
 
+from .custom_types import ModelConfig, TrainingConfig, DatasetConfig
+
 from .visual import multiplot
-from .config import RNG_SEED
+from .config import RNG_SEED, DEFAULT_MODEL_PATH, DEFAULT_METRICS_PATH, save_training_metadata
+from ..models import save_model
 
 #TODO automate model toolchain
 
@@ -50,18 +53,19 @@ class EarlyStopping():
                 if self.counter >= self.patience:
                     print('INFO: I have no time for your silly games. Stopping early.')
                     self.early_stop = True
+    def __repr__(self):
+        args = 'patience = {}, min_delta = {}, min_epochs = {}'
+        return self.__class__.__name__ + '({})'.format(args)
 
 
 #IMPLEMENT rolling average
-def fit(model, data_loaders, dataset_sizes, criterion,
-        optimizer, early_stopping, clear='terminal',
-        num_epochs=100, device="cuda", plot=False, 
-        model_name = None, lr_decay_gamma=1,
-        save_interval=25):
-    assert model_name is not None
+def fit(model, data_loaders, dataset_sizes,
+        model_config: ModelConfig, training_config: TrainingConfig, dataset_config: DatasetConfig, 
+        clear='terminal', plot=False, save_interval=25):
+    assert model_config is not None
 
-    since = time.time()
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_decay_gamma)
+    device = str(model_config['device'])
+    num_epochs = training_config['train_info']['num_epochs']
     best_model_wts = copy.deepcopy(model.state_dict())
     best_model_epochs = 0
     best_acc = 0.0
@@ -70,15 +74,35 @@ def fit(model, data_loaders, dataset_sizes, criterion,
     val_loss, val_acc = [], []
     epochs = []
 
-    metrics_path = 'figures/'+model_name
-    model_path   = 'models/'+model_name
     
-    model.aux_dict['batch_size'] = data_loaders['train'].batch_size
-    model.aux_dict['dataset_folder'] = data_loaders['train'].dataset.subset.dataset.root #i hate oop
-    model.aux_dict['dataset_rng_seed'] = RNG_SEED
-    model.aux_dict['dataset_transform'] = str(data_loaders['train'].dataset.transform)
-    model.aux_dict['train_stopped_early'] = False
+
+    criterion = torch.nn.CrossEntropyLoss()
+    optim_args = training_config['optim_args']
+    optimizer = torch.optim.Adam(model.parameters(), lr=optim_args['lr'], eps=optim_args['eps'])
+
+    lr_decay = training_config['train_info']['lr_decay']
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_decay)
+
+    es_args = training_config['early_stopping_args']
+    early_stopping = EarlyStopping(min_epochs = es_args['min_epochs'], 
+                        patience=es_args['patience'], min_delta=es_args['min_delta'])
+
+    metrics_path = DEFAULT_METRICS_PATH
+    model_path   = DEFAULT_MODEL_PATH
     
+    training_config['criterion'] = criterion
+    training_config['optim'] = optimizer
+    training_config['early_stopping'] = early_stopping
+    training_config['scheduler'] = scheduler
+
+    #TODO save these things in save_training_metadata()
+    model.aux_dict['batch_size'] = data_loaders['train'].batch_size #now in dataset_config['batch_size']
+    model.aux_dict['dataset_folder'] = data_loaders['train'].dataset.subset.dataset.root #now in dataset_config['image_folder_path']
+    model.aux_dict['dataset_rng_seed'] = RNG_SEED #now in dataset_config['rng_seed']
+    model.aux_dict['dataset_transform'] = str(data_loaders['train'].dataset.transform) #now in dataset_config['data_augmentations']
+    model.aux_dict['train_stopped_early'] = False #now in training_config['train_info']['stopped_early']
+
+    since = time.time()
     try:
         for epoch in np.arange(num_epochs) + 1:
             epochs.append(epoch)
@@ -147,11 +171,12 @@ def fit(model, data_loaders, dataset_sizes, criterion,
             if epoch % save_interval == 0:
                 temp_state_dict = copy.deepcopy(model.state_dict())
                 model.load_state_dict(best_model_wts)
-                model.aux_dict['train_iters'] = best_model_epochs
+                training_config['train_info']['trained_epochs'] = best_model_epochs
                 save_model(model, model_path, optim=None,dataloaders=data_loaders, train_metrics=metrics)
+                save_training_metadata(model_path, model_config, dataset_config, training_config)
                 model.load_state_dict(temp_state_dict)
             if early_stopping.early_stop:
-                model.aux_dict['train_stopped_early'] = True
+                training_config['train_info']['stopped_early'] = True
                 break
     except KeyboardInterrupt:
         print("Training interrupted.")
@@ -163,12 +188,12 @@ def fit(model, data_loaders, dataset_sizes, criterion,
     # load best model weights
     model.load_state_dict(best_model_wts)
     
-    model.aux_dict['train_iters'] = best_model_epochs
+    training_config['train_info']['trained_epochs'] = best_model_epochs
     
 
     return metrics
 
-def test_model(model, test_loaders, device="cuda"):
+def test_model(model, test_loaders, training_config: TrainingConfig, device="cuda"):
     model.eval()
     correct = 0
     total = 0
@@ -182,42 +207,8 @@ def test_model(model, test_loaders, device="cuda"):
     accuracy = (100 * correct / total)
     print('Accuracy of the network on test images: %.2f %%' %
           (accuracy))
-    model.aux_dict['test_acc'] = accuracy
+    training_config['train_info']['test_acc'] = accuracy
     return accuracy
-
-
-def load_model(model, path, optim=False, get_dataloaders=False,
-               get_train_metrics=False, device="cuda"):
-    output = []
-    model.load_state_dict(torch.load(
-        path + '_parameters.pt', map_location=device))
-    with open(path + '_aux_dict.json') as json_file:
-        model.aux_dict = json.load(json_file)
-    if optim:
-        optim.load_state_dict(torch.load(
-            path + '_optim.pt', map_location=device))
-    if get_dataloaders:
-        data_loaders = torch.load(
-            path + '_dataloaders.pt', map_location=device)
-        output.append(data_loaders)
-    if get_train_metrics:
-        metrics = np.load(path + '_train_metrics.npy')
-        output.append(metrics)
-    return output
-
-
-def save_model(model, path, optim=None,dataloaders=None, train_metrics=None):
-
-    torch.save(model.state_dict(), path + '_parameters.pt')
-    with open(path + '_aux_dict.json', 'w') as json_file:
-        json.dump(model.aux_dict, json_file, indent = 4)
-    if optim is not None:
-        torch.save(optim.state_dict(), path + '_optim.pt')
-    if dataloaders is not None:
-        torch.save(dataloaders, path + '_dataloaders.pt')
-    if train_metrics is not None:
-        np.save(path + '_train_metrics.npy', train_metrics)
-
 
 def plot_metrics(metrics, save_path=None):
     epochs = metrics[0]
