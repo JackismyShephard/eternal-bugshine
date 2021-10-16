@@ -5,6 +5,7 @@ import json
 import torch.nn as nn
 from torchvision import models
 import typing as t
+import pandas as pd
 from .utils.custom_types import *
 from .utils.config import DEFAULT_METRICS_PATH, DEFAULT_MODEL_PATH
 from .utils.transforms import string_to_class
@@ -126,9 +127,58 @@ class HookedModel(torch.nn.Module):
     def show_modules(self):
         """Prints the named modules in the internal model"""
         all_modules = self.model.named_modules()
-        next(all_modules)
+        start_layers = []
+        hidden_layers = []
+        end_layers = []
+        
+        at_end = False
+        temp = []
+        current_hidden = 1
+        largest_layer = 0
         for module in all_modules:
-            print(module[0])
+            layer = module[0]
+            if layer[0:5] != 'layer':
+                if at_end:
+                    end_layers.append(layer)
+                else:
+                    start_layers.append(layer)
+
+            else:
+                at_end = True
+                if layer[5] == str(current_hidden):
+                    temp.append(layer)
+                else:
+                    hidden_layers.append(temp)
+                    if len(temp) > largest_layer:
+                        largest_layer = len(temp)
+                    temp = []
+                    current_hidden += 1
+                    temp.append(layer)
+        
+        hidden_layers.append(temp)
+        if len(temp) > largest_layer:
+            largest_layer = len(temp)
+
+        table = np.full((largest_layer, len(hidden_layers)+2), ' '*64)
+
+        # not sure why, but the layers start with an empty string
+
+        table[0:len(start_layers)-1,0] = start_layers[1:]
+        columns = ['first layers']
+
+        for i in range(len(hidden_layers)):
+            table[0:len(hidden_layers[i]), i+1] = hidden_layers[i]
+            columns.append('block ' + str(i+1))
+
+        columns.append('end layers')
+        table[0:len(end_layers), -1] = end_layers
+
+        pdf = pd.DataFrame(table, columns=columns)
+    
+        with pd.option_context('display.max_rows',None):
+            display(pdf.style.hide_index())
+
+        
 
     def _hook_into(self, name):
         """Returns a hook function meant to be registered with register_forward_hook"""

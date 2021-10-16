@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image
 import torch
 import cv2 as cv
+import pandas as pd
 from torchvision.datasets.utils import download_url, extract_archive
 from torch.utils.data.dataset import Dataset
 from torch.utils.data import random_split, Subset
@@ -59,10 +60,40 @@ def image_folder_classes(data_folder):
      return len(next(os.walk(data_folder))[1])
 
 def list_classes(dataset_config: DatasetConfig):
-    dir = os.walk(dataset_config['image_folder_path'])
-    next(dir)
-    for i, entry in enumerate(dir):
-        print('{}: {}'.format(i, entry[0]))
+    dir = os.listdir(dataset_config['image_folder_path'])
+    dir = np.array(dir).reshape(-1,1)
+    class_nr = np.arange(dir.shape[0]).astype(str).reshape(-1,1)
+
+    table = np.hstack((class_nr, dir))
+
+    # trying to use the horizontal space 
+    # there might be a better way, where we can get the actual h-space 
+    h_split = 6
+    even_div = table.shape[0]//h_split + 1
+    remaining = even_div * 6 - table.shape[0]
+    placeholder = np.full((remaining, 2), ' ')
+    table = np.vstack((table,placeholder))
+
+    new_table = np.full((even_div,h_split*2), ' '*64)
+    for i in range(h_split):
+        new_table[:,i*2:(i+1)*2] = table[i*even_div:(i+1)*even_div,:]
+
+
+    #first_seg = np.hstack((class_nr[0:even_div*h_split] , dir[0:even_div*h_split])) 
+    #first_seg = first_seg.reshape(-1,h_split*2).tolist()
+    #remaining = np.hstack((class_nr[even_div*h_split:] , dir[even_div*h_split:]))
+    #remaining = remaining.reshape(-1).tolist()
+
+    #values = first_seg
+    #values.append(remaining)
+    pdf = pd.DataFrame(new_table, columns=['Class', 'Species name']*h_split)
+    
+    with pd.option_context('display.max_rows',None):
+        display(pdf.style.hide_index())
+    #dir = os.walk(dataset_config['image_folder_path'])
+    #next(dir)
+    #for i, entry in enumerate(dir):
+        #print('{}: {}'.format(i, entry[0]))
 
 def show_class_name(i, dataset_config: DatasetConfig):
     dir = os.walk(dataset_config['image_folder_path'])
