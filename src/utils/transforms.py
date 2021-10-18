@@ -5,18 +5,28 @@ import torch
 import torchvision.transforms
 from torchvision.transforms import functional
 
-class RandomizeBackground(torch.nn.Module):
+# GENERAL TODOS
+    #consider making general class for background substitution which can then be subclassed
+
+    #consider making RGBtoGRAY into a function or use another built int function from skimage for this purpose
+
+        #consider also using general noise function
+
+    #consider making general wrapper class or utility function for transformations allowing the kind of representation we want
+
+class RandomizeBackground(torch.nn.Module):  # TODO consider changing name to uniform_randomize_background or similar
     """Replace beetle PIL image background color with a random color."""
     def __init__(self, cutoff: float):
         super().__init__()
         self.cutoff = cutoff
 
     def forward(self, img: t.Union[Image.Image, torch.Tensor]):
-        if not isinstance(img, Image.Image):
+        if not isinstance(img, Image.Image): # QUESTION consider also allowing uint numpy arrs in range 0 to 255?
             raise TypeError("img should be PIL.Image.Image. Got {}".format(type(img)))
 
         np_x = np.array(img) / 255
-        np_x_gray = (np.sum(np_x, axis=2)) / 3
+
+        np_x_gray = (np.sum(np_x, axis=2)) / 3 # QUESTION consider other ways than averaging of performing grayscale conversion?
         mask = np_x_gray > self.cutoff
         mask = np.dstack([mask, mask, mask])
         
@@ -30,17 +40,25 @@ class RandomizeBackground(torch.nn.Module):
         np_x = np.where(mask == True, new_bg, np_x)
         np_x = (np_x * 255).astype('uint8')
         return Image.fromarray(np_x)
+    # TODO consider letting __repr__ just handle aggregating parameters into a list 
+    # and making a corresponding dict with class name as key and list as val.
+    # You can then (maybe) define __str_ to stringify this dict if necessary for json serialization.
+    # But i dont understand why you have to make the dict a string in order to serialize to json. 
+    # Couldnt you just save the dict when initing the class and then retrieving it during serialization?
     def __repr__(self):
         args = '[{}]'.format(self.cutoff)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
+
 
 class NotStupidRandomResizedCrop(torch.nn.Module):
     """A RandomResizedCrop reimplementation that does just what we need it to do.
         Crops a section of a PIL image with shape d*img.shape, where
         min_scale/100 <= d <= max_scale/100, at some random coordinate in the image."""
+
     def __init__(self, min_scale: float = 0.5, max_scale: float = 1):
+        # TODO consider making final output size  an input parameter
         super().__init__()
-        self.rng = np.random.default_rng()
+        self.rng = np.random.default_rng() 
         self.min_scale = min_scale
         self.max_scale = max_scale
         self.int_min_scale = int(min_scale * 100)
@@ -50,7 +68,8 @@ class NotStupidRandomResizedCrop(torch.nn.Module):
             raise TypeError("img should be PIL.Image.Image. Got {}".format(type(img)))
 
         np_x = np.array(img)
-        scale = self.rng.integers(low=self.int_min_scale, high=self.int_max_scale) / 100
+        scale = self.rng.integers(
+            low=self.int_min_scale, high=self.int_max_scale) / 100
         (h, w, _) = np_x.shape
         height = int(scale * h)
         width = int(scale * w)
@@ -61,7 +80,8 @@ class NotStupidRandomResizedCrop(torch.nn.Module):
         left = int(x_pos * x_max)
         top = int(y_pos * y_max)
         img = functional.crop(img, top, left, height, width)
-        img = functional.resize(img, [h,w])
+        # TODO if we always downsample then we should use InterpolationMode.NEAREST or InterpolationMode.INTER_AREA
+        img = functional.resize(img, [h,w]) 
         return img
     def __repr__(self):
         args = '[{},{}]'.format(self.min_scale, self.max_scale)
@@ -69,7 +89,7 @@ class NotStupidRandomResizedCrop(torch.nn.Module):
 
 class RandomizeBackgroundGraytone(torch.nn.Module):
     """Replace beetle PIL image background color with a random graytone."""
-    def __init__(self, cutoff: float, min: float = 0, max: float = 1):
+    def __init__(self, cutoff: float, min: float = 0, max: float = 1): 
         super().__init__()
         self.rng = np.random.default_rng()
         self.cutoff = cutoff
@@ -84,7 +104,7 @@ class RandomizeBackgroundGraytone(torch.nn.Module):
         mask = np_x_gray > self.cutoff
         mask = np.dstack([mask, mask, mask])
         color = self.rng.integers(int(self.min * 255), int(self.max * 255))
-        np_x = np.where(mask == True, color, (np_x * 255).astype('uint8'))
+        np_x = np.where(mask == True, color, (np_x * 255).astype('uint8')) # QUESTION why not just use img as third argument?
         return Image.fromarray(np_x)
     def __repr__(self):
         args = '[{},{},{}]'.format(self.cutoff, self.min, self.max)
@@ -104,7 +124,7 @@ class RandomizeBackgroundRGBNoise(torch.nn.Module):
         np_x_gray = (np.sum(np_x, axis=2)) / 3
         mask = np_x_gray > self.cutoff
         mask = np.dstack([mask, mask, mask])
-        new_bg = self.rng.random(np_x.shape)
+        new_bg = self.rng.random(np_x.shape) # QUESTION consider using other distributions?
         np_x = np.where(mask == True, new_bg, np_x)
         np_x = (np_x * 255).astype('uint8')
         return Image.fromarray(np_x)
@@ -112,6 +132,7 @@ class RandomizeBackgroundRGBNoise(torch.nn.Module):
         args = '[{}]'.format(self.cutoff)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 #TODO allow holes to be filled with noise or perhaps solid colors?
+#TODO consider a more compact representation of class arguments
 class CoarseDropout(torch.nn.Module):
     def __init__(self,  min_holes: int = 0, max_holes:int = 10, 
                         min_height: int = 5, max_height: int = 10, 
@@ -180,6 +201,7 @@ class Resize(torch.nn.Module):
         args = '[[{},{}]]'.format(self.size[0], self.size[1])
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
+# QUESTION why is this not a torch module?
 class ToTensor:
     def __init__(self):
         super().__init__()
@@ -202,7 +224,10 @@ class Normalize(torch.nn.Module):
     def __repr__(self):
         args = '[{}, {}]'.format(str(list(self.mean)), str(list(self.std)))
         return '{'+'"{}":'.format(self.__class__.__name__) +''+'{}'.format(args) + '}'
-    
+
+#TODO make transform dict a custom type
+# QUESTION currently only the output value of the last transformation
+# in transform_dict is returned. what exactly is the purpose of this function?
 def string_to_class(transform_dict: dict):
     for key, value in transform_dict.items():
         if key == 'RandomVerticalFlip':
