@@ -33,11 +33,12 @@ def plot_metrics(metrics, save_path=None):
     plt.close()
 
 # TODO in general i do not like the current setup. multiplot is intended to plot
-# two images against each other on a new figure and possibly save that figure.
-# If you want to make a subplot of images side by side then all of that functionality
-# should be handled in plot metrics. One possibility may to split functionality
-# into three functions or make a general plotting class. Another possibility may be to
-# return the figure created in multiplot (after optionally saving and or showing it)
+# several sequences {x, y} against each other on a new figure 
+# and possibly save that figure. If you want to make a grid with several such figures
+# then all of that functionality should be handled in plot metrics. 
+# One possibility may be to split all desired functionality into three functions 
+# or make a general plotting class. Another possibility may be to return 
+# the figure created in multiplot  (after optionally saving and or showing it) 
 # and then use that figure to create a subfigure in the caller, i.e. plot_metrics.
 # TODO the average graphs should be an optional parameter  or preferably not included,
 # i.e. handled in the caller instead
@@ -187,7 +188,7 @@ class Rendering():
 
         h, w = shape
         self.widget = widgets.Image(value = image_stream, width=w*2, height=h*2)
-        # QUESTION where is display loaded? it should be in this module
+        # QUESTION where is display loaded? It should be in this module.
         display(self.widget)
 
     # To display the images, they need to be converted to a stream of bytes
