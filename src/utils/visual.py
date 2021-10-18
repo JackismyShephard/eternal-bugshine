@@ -19,52 +19,85 @@ from .config import BEETLENET_MEAN, BEETLENET_STD, RNG_SEED, DEVICE
 from .custom_types import PlotConfig
 
 
-#TODO figsize should parameterized
 def plot_metrics(plot_config: PlotConfig, x, metrics, save_path=None):
-    fig, ax = plt.subplots(1,2, figsize=(14,7))
- 
-    titles = ['Loss', 'Accuracy', 'Loss rolling average', 'Accuracy rolling average']
-    labels = ['Training', 'Validation']
+    fig, ax = plt.subplots(plot_config['fig_row'],plot_config['fig_column'],
+                             figsize=(plot_config['size_w'],plot_config['size_h']))
 
-    multiplot(fig, ax[0], 0, x, metrics[[0, 2]], metrics[[1, 3]], 'Epoch', 'Loss',
-              labels, save_path + '_loss_comparison.pdf', title=titles[0])
-    multiplot(fig, ax[1], 7, x, metrics[[4, 6]], metrics[[ 5, 7]], 'Epoch', 'Accuracy',
-              labels, save_path + '_accuracy_comparison.pdf', title=titles[1])
+    titles = plot_config['titles']
+    y_label = plot_config['y_label']
+
+    if plot_config['use_title_label']:
+        y_label = titles
+
+    # list of colors to make the metric and the average the same color
+    colors = list(mcolors.TABLEAU_COLORS)
+
+    # container to use a single loop for all plots
+    ax_container = np.array(ax).reshape(-1)
+
+    # metric is packed as ['metric', 'average']
+    step = 2
+    
+    for i in range(ax_container.shape[0]):
+        for j in range(metrics[i].shape[0]//2):
+            ax_container[i].plot(x, metrics[i,j*step], color = colors[j%len(colors)],
+                             label=plot_config['label'][j],
+                            linestyle=plot_config['param_linestyle'], alpha=plot_config['param_alpha'])
+        
+            if plot_config['show_rolling_avg']:
+                ax_container[i].plot(x, metrics[i,j*step + 1], color = colors[j%len(colors)], 
+                                label = plot_config['label'][j] + ' ' + plot_config['rolling_avg_label'],
+                                linestyle=plot_config['average_linestyle'])
+
+        ax_container[i].set_xlabel(plot_config['x_label'])
+        ax_container[i].set_ylabel(titles[i])
+        ax_container[i].legend()
+
+        if plot_config['show_grid']:
+            ax_container[i].grid()
+        
+        if plot_config['show_title']:
+            ax_container[i].set_title(titles[i])
+        
+        # something with the index of columns and rows is wrong
+        if plot_config['save_figure'] and plot_config['save_subfigures']:
+            index_y = i // plot_config['fig_column']
+            index_x = i % plot_config['fig_column']
+
+            sub_h = plot_config['size_h'] / plot_config['fig_row']
+            sub_w = plot_config['size_w'] / plot_config['fig_column']
+
+            # try to remove some of the whitespace at the edges of the figure
+            # needs further testing to find a sweetspot
+            #pad_w = sub_w / 10
+            #pad_h = sub_h / 20
+
+            #pad_left = (index_x == 0)*pad_w
+            #pad_right = (index_x+1 == plot_config['fig_column'])*pad_w
+            #pad_up = (index_y == 0)*pad_h
+            #pad_down = (index_y+1 == plot_config['fig_row'])*pad_h
+ 
+            area = plt_transform.Bbox([ [index_x*sub_w,index_y*sub_h],
+                                        [(index_x+1)*sub_w,(index_y+1)*sub_h]])
+            print(area)
+            file_path = save_path + '_' + titles[i].lower() + '_' + plot_config['save_extension']
+            fig.savefig(file_path + '.pdf',  bbox_inches=area,
+                    facecolor='w', dpi=plot_config['save_dpi'])
+            if plot_config['save_copy_png']:
+                fig.savefig(file_path + '.png',  bbox_inches=area,
+                    facecolor='w', dpi=plot_config['save_dpi'])
+
+    if plot_config['save_figure'] and not plot_config['save_subfigures']:
+        file_path = save_path + '_' + plot_config['save_extension']
+        fig.savefig(file_path + '.pdf',  bbox_inches='tight',
+                    facecolor='w', dpi=plot_config['save_dpi'])
+        if plot_config['save_copy_png']:
+            fig.savefig(file_path + '.png',  bbox_inches='tight',
+                    facecolor='w', dpi=plot_config['save_dpi'])
     plt.tight_layout()
     plt.show()
     plt.close()
 
-   
-
-
-# TODO in general i do not like the current setup. multiplot is intended to plot
-# several sequences {x, y} against each other on a new figure 
-# and possibly save that figure. If you want to make a grid with several such figures
-# then all of that functionality should be handled in plot metrics. 
-# One possibility may be to split all desired functionality into three functions 
-# or make a general plotting class. Another possibility may be to return 
-# the figure created in multiplot  (after optionally saving and or showing it) 
-# and then use that figure to create a subfigure in the caller, i.e. plot_metrics.
-# TODO the average graphs should be an optional parameter  or preferably not included,
-# i.e. handled in the caller instead
-def multiplot(fig, ax, index, x, systems, average, x_axis, y_axis, labels, save_path=None,
-              title=None, dpi=200):
-    #TODO colors should be parameterized
-    colors = ['b','g','r','c','m','y','k']
-    ax.set_xlabel(x_axis)
-    ax.set_ylabel(y_axis)
-
-    for i in range(len(systems)):
-        ax.plot(x, systems[i], label=labels[i], linestyle='solid', color=colors[i%len(colors)], alpha=0.5)
-        ax.plot(x, average[i], label=labels[i] + ' average', linestyle='dashed', color=colors[i%len(colors)])
-        # TODO this should only be set if title is not None.
-        ax.set_title(title, pad=20) 
-    ax.legend()
-    ax.grid()
-    if save_path is not None:
-        area = plt_transform.Bbox([[index,0],[index+7,7]])
-        fig.savefig(save_path,  bbox_inches=area,
-                    facecolor='w', dpi=dpi)
 
 # TODO add else branch returning error
 def reshape_image(img, shape):

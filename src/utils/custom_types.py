@@ -109,7 +109,6 @@ class TrainingConfig(t.TypedDict, total=True):
     early_stopping_args:        t.Dict[str, int] # QUESTION again why not use EarlyStoppingArgs definition?
     train_info:                 TrainingInformation
 
-
 class PlotConfig(t.TypedDict, total=True):
     """Holds parameters used to plot during training"""
     size_h:                     int
@@ -122,17 +121,18 @@ class PlotConfig(t.TypedDict, total=True):
 
     # at the moment we use the same name for label and y_label
     use_title_label:            bool
-    label:                      t.Optional[t.List[str]]
     y_label:                    t.Optional[t.List[str]]
-
+    
     x_label:                    str
+    label:                      t.List[str]
     show_grid:                  bool
 
     save_dpi:                   int
     save_figure:                bool
     save_subfigures:            bool
     save_padding:               float
-    save_avg_extension:         str
+    save_extension:             str   
+    save_copy_png:              bool
 
     # these two might need to be some plt type instead
     param_linestyle:            str

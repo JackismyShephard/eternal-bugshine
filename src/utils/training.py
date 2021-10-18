@@ -184,10 +184,10 @@ def fit(model, data_loaders, dataset_sizes,
                                     val_loss, val_acc])
             if plot == True:
                 # QUESTION why not just save all metrics in "metrics" to begin with?
-                plotting_metrics = np.array([train_loss, train_loss_avg,
-                                                    train_acc, train_acc_avg,
-                                                    val_loss, val_loss_avg,
-                                                    val_acc, val_acc_avg])
+                plotting_metrics = np.array([[train_loss, train_loss_avg,
+                                            val_loss, val_loss_avg],
+                                            [train_acc, train_acc_avg,
+                                            val_acc, val_acc_avg]])
                 plot_metrics(plot_config, np.array(epochs), plotting_metrics, metrics_path+model_config['model_name'])
             scheduler.step()
             if epoch % save_interval == 0:

@@ -144,12 +144,12 @@ DEFAULT_TRAINING: TrainingConfig = {
 DEFAULT_PLOTTING: PlotConfig = {
     'size_h':               7,
     'size_w':               14,
-    'fig_column':           1,
-    'fig_row':              2,
+    'fig_column':           2,
+    'fig_row':              1,
     'show_title':           True,
     'titles':               ['Loss', 'Accuracy'],
     'use_title_label':      True,
-    'label':                None,
+    'label':                ['Training', 'Validation'],
     'y_label':              None,
     'x_label':              'epoch',
     'show_grid':            True,
@@ -157,12 +157,13 @@ DEFAULT_PLOTTING: PlotConfig = {
     'save_figure':          True,
     'save_subfigures':      True,
     'save_padding':         0,
-    'save_avg_extension':   'average',
+    'save_extension':       'comparison',
+    'save_copy_png':        True,
     'param_linestyle':      'solid',
     'average_linestyle':    'dashed',
     'param_alpha':          0.5,
     'rolling_avg_window':   50,
-    'rolling_avg_label':    None,
+    'rolling_avg_label':    'average',
     'show_rolling_avg':     True
 }
 
