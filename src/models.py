@@ -7,7 +7,7 @@ from torchvision import models
 import typing as t
 import pandas as pd
 from .utils.custom_types import *
-from .utils.config import DEFAULT_METRICS_PATH, DEFAULT_MODEL_PATH
+from .utils.config import DEFAULT_METRICS_PATH, DEFAULT_MODEL_PATH, DEVICE
 from .utils.transforms import string_to_class
 
 def get_model(model_config: ModelConfig, dataset_config: DatasetConfig = None):
@@ -30,15 +30,20 @@ def get_model(model_config: ModelConfig, dataset_config: DatasetConfig = None):
     else:
         num_classes = model.fc.in_features
     model = model.to(device)
-
+    # TODO just add the model module to model_config instead of adding aux_dict to model perhaps?
+    # we already have train_iters (or equivalent) saved in training_config['training_info']
+    # , 'name' and 'pretrained' saved in model_config so we just need to remember to save
+    # test_acc to model_config also
     model.aux_dict = {'name': name, 'pretrained': pretrained, 
                       'num_classes': num_classes, 'train_iters': 0, 'test_acc': None}
-
+    # and then we dont need to return anything here
     return model
 
 
+#TODO this function is kind of redundant now and so perhaps should be moved to old
+
 def load_model(model, path, optim=False, get_dataloaders=False,
-               get_train_metrics=False, device="cuda"):
+               get_train_metrics=False, device=DEVICE):
     output = []
     model.load_state_dict(torch.load(
         path + '_parameters.pt', map_location=device))
@@ -56,6 +61,13 @@ def load_model(model, path, optim=False, get_dataloaders=False,
         output.append(metrics)
     return output
 
+# TODO consider giving just model name, model path prefix and device as parameters.
+# Then we can first load in all the relevant dicts, then find and add 
+# the relevant model module to the loaded model dict (along with relevant metadata)
+# using get_model() and finally update the parameters of this model with the saved model
+# parameters.
+# TODO consider making loading of metrics and optimizer state optional 
+# #or remove the corresponding options from save_model
 def load_model_weights_and_metrics(model: torch.nn.Module, model_config: ModelConfig):
     device = model_config['device']
     path = DEFAULT_MODEL_PATH + model_config['model_name']
@@ -72,6 +84,8 @@ def load_model_weights_and_metrics(model: torch.nn.Module, model_config: ModelCo
     old_config['model_info']['device'] = torch.device(old_config['model_info']['device'])
     return metrics, old_config['model_info'], old_config['dataset_info'], old_config['train_info']
 
+#TODO I think this model should also call save_training_metadata (or similar meta data saving functions)
+#TODO Consider removing saving of dataloaders as we wont be using them. 
 def save_model(model, path, optim=None,dataloaders=None, train_metrics=None):
 
     torch.save(model.state_dict(), path + '_parameters.pt')
@@ -82,7 +96,7 @@ def save_model(model, path, optim=None,dataloaders=None, train_metrics=None):
     if train_metrics is not None:
         np.save(path + '_train_metrics.npy', train_metrics)
 
-
+#TODO We might consider removing this later (or moving into old)
 class Exposed_model(torch.nn.Module):
     def __init__(self, model, flatten_layer):
         super().__init__()
@@ -224,6 +238,7 @@ class HookedModel(torch.nn.Module):
         self._unregister_hooks()
         return x, self._get_activations(target_dict)
 
+# TODO these should probably be removed too
 class Dreamnet50(Exposed_model):
     def __init__(self, model):
         super().__init__(model, 'fc')
