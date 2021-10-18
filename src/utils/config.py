@@ -16,9 +16,9 @@ IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 BEETLENET_MEAN = np.array([0.8442649, 0.82529384, 0.82333773], dtype=np.float32)
 BEETLENET_STD = np.array([0.28980458, 0.32252666, 0.3240354], dtype=np.float32)
-BEETLENET_AVERAGE_SHAPE = (224, 448)
+BEETLENET_AVERAGE_SHAPE = (224, 448) # the average shape is about (200, 400).
 
-BEETLENET_PATH = 'data/beetles/images/'
+BEETLENET_PATH = 'data/beetles/images/' # TODO we should make paths invariant to current root if possible
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -26,7 +26,7 @@ DEFAULT_MODEL_PATH = './models/'
 DEFAULT_METRICS_PATH = './figures/'
 
 DREAM_CONFIG: DreamConfig = {
-    'out_info': {'fc': None}, #None = whole layer, otherwise specify index as tuple (y,x).
+    'out_info': {'fc': None}, #None = whole layer, otherwise specify index as tuple (y,x). #TODO update comment?
     'mean': BEETLENET_MEAN,
     'std': BEETLENET_STD,
     'input_img_path': None,
@@ -41,7 +41,7 @@ DREAM_CONFIG: DreamConfig = {
     'loss_red': 'mean',
     'norm_type': 'standardize',
     'eps': 10e-8,
-    'smooth': True,
+    'smooth': True, # TODO remove this parameter in conjunction with refactoring gradient smoothing
     'kernel_size': 9,
     'smooth_coef': 0.5,
     'clamp_type': 'standardize',
@@ -57,8 +57,8 @@ DREAM_CONFIG: DreamConfig = {
 }
 
 BEETLE_DATASET: DatasetConfig = {
-    'image_folder_path':    './data/beetles/images/',
-    'num_classes':          197,
+    'image_folder_path':    './data/beetles/images/',  #TODO use BEETLENET_PATH
+    'num_classes':          197, #TODO consider using image_folder_classes to get current number of classes as default
     'batch_size':           32,
     'num_workers':          (mp.cpu_count()//2),
     'rng_seed':             RNG_SEED,
@@ -128,6 +128,7 @@ RESNET18_TEST: ModelConfig = {
 }
 
 DEFAULT_TRAINING: TrainingConfig = {
+    # QUESTION why are optim and criterion None?  secondly, why are scheduler and early_stopping None?
     'optim':                None,
     'optim_args':           {'lr': 0.001, 'eps': 0.1},
     'criterion':            None,
@@ -140,6 +141,7 @@ DEFAULT_TRAINING: TrainingConfig = {
 }
 
 def get_new_config(param_dict, old_config: t.Union[DreamConfig, DatasetConfig, None] = None):
+    # QUESTION why dont we allow other config types to be updated?
     if old_config is None:
         raise TypeError('Config must not be None. See src/utils/config.py for default configs')
     config = copy.deepcopy(old_config)
@@ -149,6 +151,7 @@ def get_new_config(param_dict, old_config: t.Union[DreamConfig, DatasetConfig, N
 
 
 def extend_path(path, overwrite=False):
+    # TODO give a better name
     if overwrite:
         return path
     else:
@@ -160,6 +163,11 @@ def extend_path(path, overwrite=False):
 
 def save_image_metadata(path, dream_config: DreamConfig, model_config: ModelConfig, 
                         dataset_config: DatasetConfig, training_config: TrainingConfig):
+    # QUESTION why not just append all dicts to a list (or dict), then deep copy that?
+    # perhaps this can be done before calling this function so that the interface of this function
+    # is just list_of_configs.
+    # TODO perhaps give function a better name (i recall we talked about this)
+
     (root, _) = os.path.splitext(path)
     json_path = root + '.json'
     #convert troublesome dict entries:
@@ -182,13 +190,15 @@ def save_image_metadata(path, dream_config: DreamConfig, model_config: ModelConf
     new_config['model_info']['device'] = device
     new_config['dataset_info']['mean'] = mean
     new_config['dataset_info']['std'] = std
-    new_config['dream_info']['mean'] = mean
+    new_config['dream_info']['mean'] = mean # we are assuming that the mean and std in dataset_config and model_config are the same
     new_config['dream_info']['std'] = std
     
     with open(json_path, 'w') as json_file:
         json.dump(new_config, json_file, indent = 4)
 
 def save_training_metadata(path, model_config, dataset_config, training_config):
+    # TODO add type annotations to function signature
+    # TODO make save_metadata a general function or class and specialize for image and training data etc.
     (root, _) = os.path.splitext(path)
     json_path = root + '.json'
     #convert troublesome dict entries:
