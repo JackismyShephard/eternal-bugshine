@@ -61,15 +61,13 @@ def image_folder_classes(data_folder):
      return len(next(os.walk(data_folder))[1])
 
 def list_classes(dataset_config: DatasetConfig):
-    #TODO clean up this code
-    dir = os.listdir(dataset_config['image_folder_path'])
-    dir = np.array(dir).reshape(-1,1)
-    class_nr = np.arange(dir.shape[0]).astype(str).reshape(-1,1)
+    classes = os.listdir(dataset_config['image_folder_path'])
+    classes = np.array(classes).reshape(-1,1)
+    class_nr = np.arange(classes.shape[0]).astype(str).reshape(-1,1)
 
-    table = np.hstack((class_nr, dir))
+    table = np.hstack((class_nr, classes))
 
-    # trying to use the horizontal space 
-    # there might be a better way, where we can get the actual h-space 
+    # reorganise to use the horizontal space better
     h_split = 6
     even_div = table.shape[0]//h_split + 1
     remaining = even_div * 6 - table.shape[0]
@@ -80,22 +78,10 @@ def list_classes(dataset_config: DatasetConfig):
     for i in range(h_split):
         new_table[:,i*2:(i+1)*2] = table[i*even_div:(i+1)*even_div,:]
 
-
-    #first_seg = np.hstack((class_nr[0:even_div*h_split] , dir[0:even_div*h_split])) 
-    #first_seg = first_seg.reshape(-1,h_split*2).tolist()
-    #remaining = np.hstack((class_nr[even_div*h_split:] , dir[even_div*h_split:]))
-    #remaining = remaining.reshape(-1).tolist()
-
-    #values = first_seg
-    #values.append(remaining)
     pdf = pd.DataFrame(new_table, columns=['Class', 'Species name']*h_split)
     
     with pd.option_context('display.max_rows',None):
         display(pdf.style.hide_index())
-    #dir = os.walk(dataset_config['image_folder_path'])
-    #next(dir)
-    #for i, entry in enumerate(dir):
-        #print('{}: {}'.format(i, entry[0]))
 
 def show_class_name(i, dataset_config: DatasetConfig): 
     dir = os.walk(dataset_config['image_folder_path'])
