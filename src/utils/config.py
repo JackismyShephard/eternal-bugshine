@@ -224,7 +224,7 @@ def save_image_metadata(path, dream_config: DreamConfig, model_config: ModelConf
 
 def save_training_metadata(path, model_config, dataset_config, training_config):
     # TODO add type annotations to function signature
-    # TODO make save_metadata a general function or class and specialize for image and training data etc.
+    # TODO make save_metadata a general function or class and specialize for image and training metadata etc.
     (root, _) = os.path.splitext(path)
     json_path = root + '.json'
     #convert troublesome dict entries:
