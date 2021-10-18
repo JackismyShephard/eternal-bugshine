@@ -110,5 +110,38 @@ class TrainingConfig(t.TypedDict, total=True):
     train_info:                 TrainingInformation
 
 
+class PlotConfig(t.TypedDict, total=True):
+    """Holds parameters used to plot during training"""
+    size_h:                     int
+    size_w:                     int
+    fig_column:                 int
+    fig_row:                    int
 
-    
+    show_title:                 bool
+    titles:                     t.List[str]
+
+    # at the moment we use the same name for label and y_label
+    use_title_label:            bool
+    label:                      t.Optional[t.List[str]]
+    y_label:                    t.Optional[t.List[str]]
+
+    x_label:                    str
+    show_grid:                  bool
+
+    save_dpi:                   int
+    save_figure:                bool
+    save_subfigures:            bool
+    save_padding:               float
+    save_avg_extension:         str
+
+    # these two might need to be some plt type instead
+    param_linestyle:            str
+    average_linestyle:          str
+    param_alpha:                float
+
+    rolling_avg_window:         int
+    rolling_avg_label:          t.Optional[str]
+
+    show_rolling_avg:           bool
+
+

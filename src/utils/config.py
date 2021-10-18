@@ -140,6 +140,31 @@ DEFAULT_TRAINING: TrainingConfig = {
                              'test_acc':   0},
 }
 
+DEFAULT_PLOTTING: PlotConfig = {
+    'size_h':               7,
+    'size_w':               14,
+    'fig_column':           1,
+    'fig_row':              2,
+    'show_title':           True,
+    'titles':               ['Loss', 'Accuracy'],
+    'use_title_label':      True,
+    'label':                None,
+    'y_label':              None,
+    'x_label':              'epoch',
+    'show_grid':            True,
+    'save_dpi':             200,
+    'save_figure':          True,
+    'save_subfigures':      True,
+    'save_padding':         0,
+    'save_avg_extension':   'average',
+    'param_linestyle':      'solid',
+    'average_linestyle':    'dashed',
+    'param_alpha':          0.5,
+    'rolling_avg_window':   50,
+    'rolling_avg_label':    None,
+    'show_rolling_avg':     True
+}
+
 def get_new_config(param_dict, old_config: t.Union[DreamConfig, DatasetConfig, None] = None):
     # QUESTION why dont we allow other config types to be updated?
     if old_config is None:

@@ -1,6 +1,7 @@
 import collections
 import matplotlib.pyplot as plt
 import matplotlib.transforms as plt_transform
+import matplotlib.colors as mcolors
 import numpy as np
 import cv2 as cv
 import torch
@@ -9,28 +10,32 @@ from PIL import Image
 from skimage import filters as skfilt
 from skimage.util import random_noise
 
+# used for image rendering
 import io
 from ipywidgets import widgets
-
+from IPython import display
 
 from .config import BEETLENET_MEAN, BEETLENET_STD, RNG_SEED, DEVICE
+from .custom_types import PlotConfig
+
 
 #TODO figsize should parameterized
-def plot_metrics(metrics, save_path=None):
+def plot_metrics(plot_config: PlotConfig, x, metrics, save_path=None):
     fig, ax = plt.subplots(1,2, figsize=(14,7))
-    epochs = metrics[0]
-    remaining_metrics = metrics[1:]
-    systems = np.array([[epochs, metric] for metric in remaining_metrics])
+ 
     titles = ['Loss', 'Accuracy', 'Loss rolling average', 'Accuracy rolling average']
     labels = ['Training', 'Validation']
 
-    multiplot(fig, ax[0], 0, systems[[0, 2]], systems[[4, 6]], 'Epoch', 'Loss',
+    multiplot(fig, ax[0], 0, x, metrics[[0, 2]], metrics[[1, 3]], 'Epoch', 'Loss',
               labels, save_path + '_loss_comparison.pdf', title=titles[0])
-    multiplot(fig, ax[1], 7, systems[[1, 3]], systems[[ 5, 7]], 'Epoch', 'Accuracy',
+    multiplot(fig, ax[1], 7, x, metrics[[4, 6]], metrics[[ 5, 7]], 'Epoch', 'Accuracy',
               labels, save_path + '_accuracy_comparison.pdf', title=titles[1])
     plt.tight_layout()
     plt.show()
     plt.close()
+
+   
+
 
 # TODO in general i do not like the current setup. multiplot is intended to plot
 # several sequences {x, y} against each other on a new figure 
@@ -42,7 +47,7 @@ def plot_metrics(metrics, save_path=None):
 # and then use that figure to create a subfigure in the caller, i.e. plot_metrics.
 # TODO the average graphs should be an optional parameter  or preferably not included,
 # i.e. handled in the caller instead
-def multiplot(fig, ax, x, systems, average, x_axis, y_axis, labels, save_path=None,
+def multiplot(fig, ax, index, x, systems, average, x_axis, y_axis, labels, save_path=None,
               title=None, dpi=200):
     #TODO colors should be parameterized
     colors = ['b','g','r','c','m','y','k']
@@ -50,14 +55,14 @@ def multiplot(fig, ax, x, systems, average, x_axis, y_axis, labels, save_path=No
     ax.set_ylabel(y_axis)
 
     for i in range(len(systems)):
-        ax.plot(systems[i, 0], systems[i, 1], label=labels[i], linestyle='solid', color=colors[i%len(colors)], alpha=0.5)
-        ax.plot(average[i, 0], average[i, 1], label=labels[i] + ' average', linestyle='dashed', color=colors[i%len(colors)])
+        ax.plot(x, systems[i], label=labels[i], linestyle='solid', color=colors[i%len(colors)], alpha=0.5)
+        ax.plot(x, average[i], label=labels[i] + ' average', linestyle='dashed', color=colors[i%len(colors)])
         # TODO this should only be set if title is not None.
         ax.set_title(title, pad=20) 
     ax.legend()
     ax.grid()
     if save_path is not None:
-        area = plt_transform.Bbox([[x,0],[x+7,7]])
+        area = plt_transform.Bbox([[index,0],[index+7,7]])
         fig.savefig(save_path,  bbox_inches=area,
                     facecolor='w', dpi=dpi)
 
