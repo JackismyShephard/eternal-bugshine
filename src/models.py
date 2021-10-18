@@ -10,6 +10,14 @@ from .utils.custom_types import *
 from .utils.config import DEFAULT_METRICS_PATH, DEFAULT_MODEL_PATH, DEVICE
 from .utils.transforms import string_to_class
 
+##GENERAL COMMENTS
+#TODO make general get_model function which encapsulates the whole pipeline of (possibly) loading model config
+# downloading a corresponding torch model, updating parameters and dicts, training the model, testing the model
+# possibly saving the model and finally hooking the model.
+
+
+
+#TODO rename to download_model
 def get_model(model_config: ModelConfig, dataset_config: DatasetConfig = None):
     name = model_config['model_architecture']
     pretrained = model_config['pretrained']
@@ -41,7 +49,6 @@ def get_model(model_config: ModelConfig, dataset_config: DatasetConfig = None):
 
 
 #TODO this function is kind of redundant now and so perhaps should be moved to old
-
 def load_model(model, path, optim=False, get_dataloaders=False,
                get_train_metrics=False, device=DEVICE):
     output = []
