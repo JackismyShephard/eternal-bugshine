@@ -8,7 +8,7 @@ import json
 import numpy as np
 import torch
 
-from .custom_types import ModelConfig, TrainingConfig, DatasetConfig
+from .custom_types import ModelConfig, TrainingConfig, DatasetConfig, PlotConfig
 
 from .visual import plot_metrics
 from .config import RNG_SEED, DEFAULT_MODEL_PATH, DEFAULT_METRICS_PATH, save_training_metadata
@@ -59,6 +59,7 @@ class EarlyStopping():
 # TODO incorcorate model into model_config and data_loaders, dataset_sizes into dataset_config or a similar dicts
 def fit(model, data_loaders, dataset_sizes,
         model_config: ModelConfig, training_config: TrainingConfig, dataset_config: DatasetConfig, 
+        plot_config: PlotConfig,
         clear='terminal', plot=False, save_interval=25):
     assert model_config is not None
 
@@ -73,11 +74,6 @@ def fit(model, data_loaders, dataset_sizes,
     train_loss_avg, train_acc_avg = [], []
     val_loss_avg, val_acc_avg = [], []
     epochs = []
-
-    # TODO parametrize this value
-    # As for now it is defined here 
-    rolling_avg_len = 50
-
     
     # TODO since we already have criterion in training_config why not just add cross_entropy as default there?
     criterion = torch.nn.CrossEntropyLoss()
@@ -155,15 +151,15 @@ def fit(model, data_loaders, dataset_sizes,
                     train_acc.append(epoch_acc)
 
                     #rolling average
-                    train_loss_avg.append(np.mean(train_loss[-rolling_avg_len:len(train_loss)]))
-                    train_acc_avg.append(np.mean(train_acc[-rolling_avg_len:len(train_acc)]))
+                    train_loss_avg.append(np.mean(train_loss[-plot_config['rolling_avg_window']:len(train_loss)]))
+                    train_acc_avg.append(np.mean(train_acc[-plot_config['rolling_avg_window']:len(train_acc)]))
                 else:
                     val_loss.append(epoch_loss)
                     val_acc.append(epoch_acc)
 
                     #rolling average
-                    val_loss_avg.append(np.mean(val_loss[-rolling_avg_len:len(val_loss)]))
-                    val_acc_avg.append(np.mean(val_acc[-rolling_avg_len:len(val_acc)]))
+                    val_loss_avg.append(np.mean(val_loss[-plot_config['rolling_avg_window']:len(val_loss)]))
+                    val_acc_avg.append(np.mean(val_acc[-plot_config['rolling_avg_window']:len(val_acc)]))
                     
                     # TODO consider choosing final model based on loss and not accuracy
 
@@ -188,11 +184,11 @@ def fit(model, data_loaders, dataset_sizes,
                                     val_loss, val_acc])
             if plot == True:
                 # QUESTION why not just save all metrics in "metrics" to begin with?
-                plotting_metrics = np.array([epochs, train_loss, train_acc,
-                                    val_loss, val_acc, train_loss_avg,
-                                     train_acc_avg, val_loss_avg, val_acc_avg ])
-                # TODO the save path should probably be metrics_path + model_name
-                plot_metrics(plotting_metrics, metrics_path)
+                plotting_metrics = np.array([train_loss, train_loss_avg,
+                                                    train_acc, train_acc_avg,
+                                                    val_loss, val_loss_avg,
+                                                    val_acc, val_acc_avg])
+                plot_metrics(plot_config, np.array(epochs), plotting_metrics, metrics_path+model_config['model_name'])
             scheduler.step()
             if epoch % save_interval == 0:
                 temp_state_dict = copy.deepcopy(model.state_dict())
