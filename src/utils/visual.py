@@ -1,5 +1,6 @@
 import collections
 import matplotlib.pyplot as plt
+import matplotlib.transforms as plt_transform
 import numpy as np
 import cv2 as cv
 import torch
@@ -14,22 +15,38 @@ from ipywidgets import widgets
 
 from .config import BEETLENET_MEAN, BEETLENET_STD, RNG_SEED
 
+def plot_metrics(metrics, save_path=None):
+    fig, ax = plt.subplots(1,2, figsize=(14,7))
+    epochs = metrics[0]
+    remaining_metrics = metrics[1:]
+    systems = np.array([[epochs, metric] for metric in remaining_metrics])
+    titles = ['Loss', 'Accuracy', 'Loss rolling average', 'Accuracy rolling average']
+    labels = ['Training', 'Validation', ]
 
-def multiplot(systems, x_axis, y_axis, labels, save_path=None,
-              title=None, dpi=200):
-    plt.figure()
-    plt.xlabel(x_axis)
-    plt.ylabel(y_axis)
-    for i in range(len(systems)):
-        plt.plot(systems[i, 0], systems[i, 1], label=labels[i])
-        plt.title(title, pad=20)
-    plt.legend()
-    plt.grid()
-    if save_path is not None:
-        plt.savefig(save_path,  bbox_inches='tight',
-                    facecolor='w', dpi=dpi)
+    multiplot(fig, ax[0], 0, systems[[0, 2]], systems[[4, 6]], 'Epoch', 'Loss',
+              labels, save_path + '_loss_comparison.pdf', title=titles[0])
+    multiplot(fig, ax[1], 7, systems[[1, 3]], systems[[ 5, 7]], 'Epoch', 'Accuracy',
+              labels, save_path + '_accuracy_comparison.pdf', title=titles[1])
+    plt.tight_layout()
     plt.show()
     plt.close()
+
+def multiplot(fig, ax, x, systems, average, x_axis, y_axis, labels, save_path=None,
+              title=None, dpi=200):
+    colors = ['b','g','r','c','m','y','k']
+    ax.set_xlabel(x_axis)
+    ax.set_ylabel(y_axis)
+
+    for i in range(len(systems)):
+        ax.plot(systems[i, 0], systems[i, 1], label=labels[i], linestyle='solid', color=colors[i%len(colors)], alpha=0.5)
+        ax.plot(average[i, 0], average[i, 1], label=labels[i] + ' average', linestyle='dashed', color=colors[i%len(colors)])
+        ax.set_title(title, pad=20)
+    ax.legend()
+    ax.grid()
+    if save_path is not None:
+        area = plt_transform.Bbox([[x,0],[x+7,7]])
+        fig.savefig(save_path,  bbox_inches=area,
+                    facecolor='w', dpi=dpi)
 
 def reshape_image(img, shape):
     if isinstance(shape, int):

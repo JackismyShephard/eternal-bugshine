@@ -10,7 +10,7 @@ import torch
 
 from .custom_types import ModelConfig, TrainingConfig, DatasetConfig
 
-from .visual import multiplot
+from .visual import plot_metrics
 from .config import RNG_SEED, DEFAULT_MODEL_PATH, DEFAULT_METRICS_PATH, save_training_metadata
 from ..models import save_model
 
@@ -69,7 +69,12 @@ def fit(model, data_loaders, dataset_sizes,
     metrics = []
     train_loss, train_acc = [], []
     val_loss, val_acc = [], []
+    train_loss_avg, train_acc_avg = [], []
+    val_loss_avg, val_acc_avg = [], []
     epochs = []
+
+    # As for now it is defined here 
+    rolling_avg_len = 50
 
     
 
@@ -134,9 +139,18 @@ def fit(model, data_loaders, dataset_sizes,
                 if phase == 'train':
                     train_loss.append(epoch_loss)
                     train_acc.append(epoch_acc)
+
+                    #rolling average
+                    train_loss_avg.append(np.mean(train_loss[-rolling_avg_len:len(train_loss)]))
+                    train_acc_avg.append(np.mean(train_acc[-rolling_avg_len:len(train_acc)]))
                 else:
                     val_loss.append(epoch_loss)
                     val_acc.append(epoch_acc)
+
+                    #rolling average
+                    val_loss_avg.append(np.mean(val_loss[-rolling_avg_len:len(val_loss)]))
+                    val_acc_avg.append(np.mean(val_acc[-rolling_avg_len:len(val_acc)]))
+
                     if epoch_acc > best_acc:
                         best_acc = epoch_acc
                         best_model_wts = copy.deepcopy(model.state_dict())
@@ -156,7 +170,10 @@ def fit(model, data_loaders, dataset_sizes,
             metrics = np.array([epochs, train_loss, train_acc,
                                     val_loss, val_acc])
             if plot == True:
-                plot_metrics(metrics, metrics_path)
+                plotting_metrics = np.array([epochs, train_loss, train_acc,
+                                    val_loss, val_acc, train_loss_avg,
+                                     train_acc_avg, val_loss_avg, val_acc_avg ])
+                plot_metrics(plotting_metrics, metrics_path)
             scheduler.step()
             if epoch % save_interval == 0:
                 temp_state_dict = copy.deepcopy(model.state_dict())
@@ -201,12 +218,4 @@ def test_model(model, test_loaders, training_config: TrainingConfig, device="cud
     training_config['train_info']['test_acc'] = accuracy
     return accuracy
 
-def plot_metrics(metrics, save_path=None):
-    epochs = metrics[0]
-    remaining_metrics = metrics[1:]
-    systems = np.array([[epochs, metric] for metric in remaining_metrics])
-    labels = ['Training', 'Validation']
-    multiplot(systems[[0, 2]], 'Epoch', 'Loss',
-              labels, save_path + '_loss_comparison.pdf')
-    multiplot(systems[[1, 3]], 'Epoch', 'Accuracy',
-              labels, save_path + '_accuracy_comparison.pdf')
+
