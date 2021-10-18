@@ -59,42 +59,34 @@ def plot_metrics(plot_config: PlotConfig, x, metrics, save_path=None):
         if plot_config['show_title']:
             ax_container[i].set_title(titles[i])
         
-        # something with the index of columns and rows is wrong
-        if plot_config['save_figure'] and plot_config['save_subfigures']:
-            index_y = i // plot_config['fig_column']
-            index_x = i % plot_config['fig_column']
-
-            sub_h = plot_config['size_h'] / plot_config['fig_row']
-            sub_w = plot_config['size_w'] / plot_config['fig_column']
-
-            # try to remove some of the whitespace at the edges of the figure
-            # needs further testing to find a sweetspot
-            #pad_w = sub_w / 10
-            #pad_h = sub_h / 20
-
-            #pad_left = (index_x == 0)*pad_w
-            #pad_right = (index_x+1 == plot_config['fig_column'])*pad_w
-            #pad_up = (index_y == 0)*pad_h
-            #pad_down = (index_y+1 == plot_config['fig_row'])*pad_h
- 
-            area = plt_transform.Bbox([ [index_x*sub_w,index_y*sub_h],
-                                        [(index_x+1)*sub_w,(index_y+1)*sub_h]])
-            print(area)
-            file_path = save_path + '_' + titles[i].lower() + '_' + plot_config['save_extension']
-            fig.savefig(file_path + '.pdf',  bbox_inches=area,
-                    facecolor='w', dpi=plot_config['save_dpi'])
-            if plot_config['save_copy_png']:
-                fig.savefig(file_path + '.png',  bbox_inches=area,
-                    facecolor='w', dpi=plot_config['save_dpi'])
-
-    if plot_config['save_figure'] and not plot_config['save_subfigures']:
-        file_path = save_path + '_' + plot_config['save_extension']
-        fig.savefig(file_path + '.pdf',  bbox_inches='tight',
-                    facecolor='w', dpi=plot_config['save_dpi'])
-        if plot_config['save_copy_png']:
-            fig.savefig(file_path + '.png',  bbox_inches='tight',
-                    facecolor='w', dpi=plot_config['save_dpi'])
     plt.tight_layout()
+    if plot_config['save_figure']:
+        if plot_config['save_subfigures']:
+            for i in range(ax_container.shape[0]):
+                index_y = i // plot_config['fig_column']
+                index_x = i % plot_config['fig_column']
+
+                sub_h = plot_config['size_h'] / plot_config['fig_row']
+                sub_w = plot_config['size_w'] / plot_config['fig_column']
+ 
+                area = plt_transform.Bbox([ [index_x*sub_w,index_y*sub_h],
+                                        [(index_x+1)*sub_w,(index_y+1)*sub_h]])
+
+                file_path = save_path + '_' + titles[i].lower() + '_' + plot_config['save_extension']
+                fig.savefig(file_path + '.pdf',  bbox_inches=area,
+                            facecolor='w', dpi=plot_config['save_dpi'])
+                if plot_config['save_copy_png']:
+                    fig.savefig(file_path + '.png',  bbox_inches=area,
+                            facecolor='w', dpi=plot_config['save_dpi'])
+        else:
+            file_path = save_path + '_' + plot_config['save_extension']
+            fig.savefig(file_path + '.pdf',  bbox_inches='tight',
+                        facecolor='w', dpi=plot_config['save_dpi'])
+            if plot_config['save_copy_png']:
+                fig.savefig(file_path + '.png',  bbox_inches='tight',
+                        facecolor='w', dpi=plot_config['save_dpi'])
+
+
     plt.show()
     plt.close()
 
