@@ -18,6 +18,7 @@ from .custom_types import *
 def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip',
                      zip_name='beetles.zip', folder_name='beetles',
                      force_download=False, root='./data/'):
+    #TODO consider parametrizing the minimum number of class examples
     ssl._create_default_https_context = ssl._create_unverified_context
     archive = os.path.join(root, zip_name)
     data_folder = os.path.join(root, folder_name)
@@ -26,7 +27,7 @@ def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip
         extract_archive(archive, data_folder, False)
     image_folder_dirs = os.walk(data_folder+'/images/')
     next(image_folder_dirs)
-    for root, dirs, files in image_folder_dirs:
+    for root, _, files in image_folder_dirs:
         if len(files) < 10:
             print(root)
             for name in files:
@@ -60,6 +61,7 @@ def image_folder_classes(data_folder):
      return len(next(os.walk(data_folder))[1])
 
 def list_classes(dataset_config: DatasetConfig):
+    #TODO clean up this code
     dir = os.listdir(dataset_config['image_folder_path'])
     dir = np.array(dir).reshape(-1,1)
     class_nr = np.arange(dir.shape[0]).astype(str).reshape(-1,1)
@@ -95,11 +97,17 @@ def list_classes(dataset_config: DatasetConfig):
     #for i, entry in enumerate(dir):
         #print('{}: {}'.format(i, entry[0]))
 
-def show_class_name(i, dataset_config: DatasetConfig):
+def show_class_name(i, dataset_config: DatasetConfig): 
     dir = os.walk(dataset_config['image_folder_path'])
     next(dir)
     dir = list(dir)
     print('class {}: {}'.format(i, dir[i][0]))
+
+def show_class_name2(i, dataset_config: DatasetConfig):
+    '''similar to get_class_example_image, but class name instead of full paths are printed'''
+    dir = os.walk(dataset_config['image_folder_path'])
+    _, classes, _ = next(dir)
+    print('class {}: {}'.format(i, classes[i]))
 
 def get_class_example_image(i, dataset_config: DatasetConfig):
     dir = os.walk(dataset_config['image_folder_path'])
@@ -113,8 +121,22 @@ def get_class_example_image(i, dataset_config: DatasetConfig):
     path = os.path.join(path_prefix, path_suffix)
     return cv.imread(path)[:, :, ::-1]
 
-def split_dataset(dataset, train_ratio, val_ratio):
 
+def get_class_example_image2(i, dataset_config: DatasetConfig):
+    '''similar to get_class_example_image, but class name instead of full paths are printed'''
+    dir = os.walk(dataset_config)
+    _, classes, _ = next(dir)
+    print('Class: {}'.format(classes[i]))
+    dir = list(dir)
+    path_prefix = dir[i][0]
+    dir = os.walk(dir[i][0])
+    dir = list(dir)
+    path_suffix = dir[0][2][0]
+    path = os.path.join(path_prefix, path_suffix)
+    return cv.imread(path)[:, :, ::-1]
+
+def split_dataset(dataset, train_ratio, val_ratio):
+    # TODO this function can probably be deleted now
     train_size = int(train_ratio * len(dataset))
     val_size = int(val_ratio * (len(dataset) - train_size))
     test_size = len(dataset) - (train_size + val_size)
@@ -124,6 +146,8 @@ def split_dataset(dataset, train_ratio, val_ratio):
     return train_data, val_data, test_data, dataset_sizes
 
 def split_dataset_stratified(dataset, train_ratio, val_ratio):
+    #TODO val_ratio is not used. with train_ratio = 0.9 we get a split of 0.81 train data, 
+    # 0.09 val_data and 0.10 test data
     dataset_indices = list(range(len(dataset.targets)))
     train_indices, test_indices = train_test_split(dataset_indices, train_size=train_ratio, 
                                                     stratify=dataset.targets, random_state=RNG_SEED)
@@ -135,22 +159,6 @@ def split_dataset_stratified(dataset, train_ratio, val_ratio):
     val_data    = Subset(dataset, val_indices)
     dataset_sizes = {'train': len(train_data), 'val': len(val_data), 'test': len(test_data)}
     return train_data, val_data, test_data, dataset_sizes
-
-def dataset_to_dataloaders(dataset_config: DatasetConfig):
-    """Create dataloaders from dataset images.\n
-       Returns: training_dataset, validation_dataset, testing_dataset"""
-    #FIXME currently assumes all given paths are split with '/'
-    dataset = ImageFolder(dataset_config['image_folder_path'])
-    training_ratio = dataset_config['training_data_ratio']
-    validation_ratio = dataset_config['validation_data_ratio']
-    train_data, val_data, test_data, dataset_sizes = split_dataset_stratified(dataset, training_ratio, validation_ratio)
-    print('dataset sizes: {}'.format(dataset_sizes))
-    transforms = dataset_config['data_augmentations']
-    batch_size = dataset_config['batch_size']
-    num_workers = dataset_config['num_workers']
-    train_dataset, val_dataset, test_dataset = apply_transforms(transforms, train_data, val_data, test_data)
-    dataloaders = get_dataloaders(train_dataset, val_dataset, test_dataset, batch_size, num_workers)
-    return dataloaders, dataset_sizes
 
 def dataset_stats(data_set, num_workers=0, batch_size=32):
 
@@ -178,6 +186,26 @@ def dataset_stats(data_set, num_workers=0, batch_size=32):
     std = torch.sqrt(snd_moment - fst_moment ** 2).cpu().detach().numpy()
     return mean, std
 
+
+def standardize_stats(train_data, shape=(224, 448), num_workers=0,
+                      batch_size=32, load_path=None, save_path=None):
+
+    if load_path is not None:
+        mean, std = np.load(load_path)
+
+    else:
+        resize = transforms.Resize(shape)
+        tensorfy = transforms.ToTensor()
+        transforms_pre_norm = transforms.Compose([resize, tensorfy])
+        train_data_pre_norm = TransformsDataset(
+            train_data, transforms_pre_norm)
+        mean, std = dataset_stats(train_data_pre_norm, num_workers, batch_size)
+
+    if save_path is not None:
+        np.save(save_path, np.array((mean, std)))
+
+    return mean, std
+
 class TransformsDataset(Dataset):
     def __init__(self, subset, transform=None):
         self.subset = subset
@@ -192,27 +220,9 @@ class TransformsDataset(Dataset):
     def __len__(self):
         return len(self.subset)
 
-
-def standardize_stats(train_data, shape=(224, 448), num_workers=0, 
-                        batch_size=32, load_path=None, save_path=None):
-
-    if load_path is not None:
-        mean, std = np.load(load_path)
-
-    else:
-        resize = transforms.Resize(shape)
-        tensorfy = transforms.ToTensor()
-        transforms_pre_norm = transforms.Compose([resize, tensorfy])
-        train_data_pre_norm = TransformsDataset(train_data, transforms_pre_norm)
-        mean, std = dataset_stats(train_data_pre_norm, num_workers, batch_size)
-
-    if save_path is not None:
-        np.save(save_path, np.array((mean, std)))
-
-    return mean, std
-
 def default_transform(train_data, val_data, test_data, shape = (224, 448), 
                         mean = BEETLENET_MEAN, std = BEETLENET_STD):
+    #TODO consider removing this function later
     resize = transforms.Resize(shape)
     tensorfy = transforms.ToTensor()
     normalize = transforms.Normalize(mean, std)
@@ -224,6 +234,8 @@ def default_transform(train_data, val_data, test_data, shape = (224, 448),
     return train_data_T, val_data_T, test_data_T
 
 def apply_transforms(transform_list, train_data, val_data , test_data):
+    # TODO parameterize default shape, mean and std
+    # TODO default transform is not appended to "transform" composition. Consider doing this?
     default_shape = BEETLENET_AVERAGE_SHAPE
     default_mean = BEETLENET_MEAN
     default_std  = BEETLENET_STD
@@ -249,3 +261,23 @@ def get_dataloaders(train_data, val_data, test_data, batch_size = 32, num_worker
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size,
                                             num_workers=num_workers)
     return {'train': train_loader, 'val': val_loader, 'test': test_loader}
+
+def dataset_to_dataloaders(dataset_config: DatasetConfig):
+    """Create dataloaders from dataset images.\n
+       Returns: training_dataset, validation_dataset, testing_dataset"""
+    #FIXME currently assumes all given paths are split with '/'
+    #QUESTION: why?
+    dataset = ImageFolder(dataset_config['image_folder_path'])
+    training_ratio = dataset_config['training_data_ratio']
+    validation_ratio = dataset_config['validation_data_ratio']
+    train_data, val_data, test_data, dataset_sizes = split_dataset_stratified(
+        dataset, training_ratio, validation_ratio)
+    print('dataset sizes: {}'.format(dataset_sizes))
+    transforms = dataset_config['data_augmentations']
+    batch_size = dataset_config['batch_size']
+    num_workers = dataset_config['num_workers']
+    train_dataset, val_dataset, test_dataset = apply_transforms(
+        transforms, train_data, val_data, test_data)
+    dataloaders = get_dataloaders(
+        train_dataset, val_dataset, test_dataset, batch_size, num_workers)
+    return dataloaders, dataset_sizes
