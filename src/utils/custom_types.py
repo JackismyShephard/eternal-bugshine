@@ -5,13 +5,16 @@ import numpy as np
 from numpy import typing as npt
 #IMPLEMENT custom types / type annotations for codebase
 class DreamConfig(t.TypedDict, total=False):
+    #QUESTION, why is total false here,when are we adding entries not in this list to a dream config?
     """Contains parameters and settings used in the dreamspace function"""
     model:              torch.nn.Module
+    # QUESTION t.Tuple
     out_info:           t.Dict[str, t.Union[t.Tuple[int, int], t.List[int], int, None]]
     mean:               npt.NDArray[np.float32]
     std:                npt.NDArray[np.float32]
     input_img_path:     t.Optional[str]
     target_shape:       t.Union[int, t.Tuple[int, int]]
+    # TODO consider making noise_corellation a parameter separate to noise
     noise:              t.Optional[t.Literal[   'uniform', 
                                                 'gaussian', 
                                                 'correlated_uniform', 
@@ -23,12 +26,13 @@ class DreamConfig(t.TypedDict, total=False):
     lr:                 float
     loss_type:          t.Literal['norm', 'mean']
     loss_red:           t.Literal['mean', 'sum']
-    norm_type:          t.Optional[t.Literal['standardize']] #TODO other one uses epsilon, what is it called?
+    norm_type:          t.Literal['standardize', 'abs_mean']
     eps:                float
     smooth:             bool
+    # TODO kernel size should be both a scalar and a tuple, but right now cascade gaussian is buggy
     kernel_size:        int
     smooth_coef:        float
-    clamp_type:         t.Optional[t.Literal['standardize', 'unit']]
+    clamp_type:         t.Literal['standardize', 'unit', 'neg-unit']
     show:               bool
     figsize:            t.Tuple[int, int]
     save_interval:      int
@@ -63,6 +67,8 @@ class DatasetConfig(t.TypedDict, total=True):
     """The average image dimensions of the dataset"""
     data_augmentations:         t.List[t.Union[torch.nn.Module, object]]
     """List of data augmentations that should be applied to the training set"""
+    # QUESTION why do we have to include general objects? this kind of defeats the purpose a declaring a type.
+    # TODO define our own type for transformations?
     batch_size:                 int
     """Batch size for the dataloaders"""
     num_workers:                int
@@ -82,7 +88,7 @@ class EarlyStoppingArgs(t.TypedDict, total=True):
     """Holds parameters used to determine early stopping during training"""
     min_epochs:                 int
     patience:                   int
-    min_delta:                  int
+    min_delta:                  int # TODO this should really be a float
 
 class TrainingInformation(t.TypedDict, total=True):
     """Holds information about a training session"""
@@ -94,12 +100,13 @@ class TrainingInformation(t.TypedDict, total=True):
 
 class TrainingConfig(t.TypedDict, total=True):
     """Describes parameters used for training, besides model and dataset"""
-    optim:                      t.Optional[torch.optim.Optimizer]
-    optim_args:                 t.Dict[str, float]
-    criterion:                  t.Optional[torch.nn.Module]
+    optim:                      t.Optional[torch.optim.Optimizer] # QUESTION why an optional for optim? we always need an optimizer
+    optim_args:                 t.Dict[str, float] # QUESTION why not just use OptimArgs?
+    criterion:                  t.Optional[torch.nn.Module] # TODO consider defining our own loss type including relevant loss functions
+    # TODO use torch.optim.lr_schedule instead of object for scheduler class
     scheduler:                  t.Optional[object]
-    early_stopping:             t.Optional[object]
-    early_stopping_args:        t.Dict[str, int]
+    early_stopping:             t.Optional[object] # QUESTION cant we just use our class name EarlyStopping here?
+    early_stopping_args:        t.Dict[str, int] # QUESTION again why not use EarlyStoppingArgs definition?
     train_info:                 TrainingInformation
 
 
