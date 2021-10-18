@@ -16,6 +16,7 @@ from ipywidgets import widgets
 from .config import BEETLENET_MEAN, BEETLENET_STD, RNG_SEED, DEVICE
 
 #TODO figsize should parameterized
+#TODO change save_path = None as default, as it does not make sense
 def plot_metrics(metrics, save_path=None):
     fig, ax = plt.subplots(1,2, figsize=(14,7))
     epochs = metrics[0]

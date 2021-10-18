@@ -138,7 +138,8 @@ DEFAULT_TRAINING: TrainingConfig = {
     'train_info':           {'num_epochs': 400, 'trained_epochs': 0, 
                              'lr_decay': 0.995, 'stopped_early': False,
                              'test_acc':   0},
-}
+}  # TODO test_accuracy is not related to training really, so it should rather be saved
+   # in a model config (where the associated model module could also be saved)
 
 def get_new_config(param_dict, old_config: t.Union[DreamConfig, DatasetConfig, None] = None):
     # QUESTION why dont we allow other config types to be updated?
