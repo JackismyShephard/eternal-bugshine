@@ -24,7 +24,7 @@ class DreamConfig(t.TypedDict, total=False):
     shift_size:         int
     num_iters:          int
     lr:                 float
-    loss_type:          t.Literal['norm', 'mean']
+    loss_type:          t.Literal['norm', 'mean', 'MSE']
     loss_red:           t.Literal['mean', 'sum']
     norm_type:          t.Literal['standardize', 'abs_mean']
     eps:                float

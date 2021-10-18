@@ -11,7 +11,7 @@ import torch
 from .custom_types import ModelConfig, TrainingConfig, DatasetConfig, PlotConfig
 
 from .visual import plot_metrics
-from .config import RNG_SEED, DEFAULT_MODEL_PATH, DEFAULT_METRICS_PATH, save_training_metadata
+from .config import RNG_SEED, DEFAULT_MODEL_PATH, DEFAULT_METRICS_PATH, save_training_metadata, DEVICE
 from ..models import save_model
 
 #IMPLEMENT smarter early stopping that calculates graph trend based on last N values
@@ -56,7 +56,7 @@ class EarlyStopping():
 
 
 #IMPLEMENT rolling average
-# TODO incorcorate model into model_config and data_loaders, dataset_sizes into dataset_config or a similar dicts
+# TODO incorporate model into model_config and data_loaders, dataset_sizes into dataset_config or similar dicts
 def fit(model, data_loaders, dataset_sizes,
         model_config: ModelConfig, training_config: TrainingConfig, dataset_config: DatasetConfig, 
         plot_config: PlotConfig,
@@ -217,8 +217,11 @@ def fit(model, data_loaders, dataset_sizes,
     save_training_metadata(model_path+model_config['model_name'], model_config, dataset_config, training_config)
 
     return metrics
-
-def test_model(model, test_loaders, training_config: TrainingConfig, device="cuda"):
+#TODO Here we could give as parameter just a modelconfig along with test_loaders. 
+# The model and device will be loaded from the modelconfig and test accuracy saved to it. 
+# Or we could handle the saving of accuracy on the caller side
+# if we will always be calling this function from a fetch_model() pipeline function
+def test_model(model, test_loaders, training_config: TrainingConfig, device=DEVICE):
     model.eval()
     correct = 0
     total = 0
