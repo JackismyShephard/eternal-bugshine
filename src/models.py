@@ -209,6 +209,19 @@ class HookedModel(torch.nn.Module):
 
     #TODO in case we want to apply different weights to different activations, perhaps this should return a dictionary instead
     #TODO not sure if to('cpu') slows us down. is there a way to encapsulate the behavior of _get_activations without this?
+        #QUESTION why do we need to clone?
+        #QUESTION why do we need to transfer to cpu arent we doing this later anyways?
+
+    #TODO First axis is batch axis. We might consider parametrizing our hooked model so that it works
+    # with more than one example in the batch dimension (not relevant right now but might be later)
+    # TODO perhaps make it clear that each index in list should be a tuple (channel_idx, w_idx, h_idx) where w_idx and h_idx can be lists themselves.
+    # The problem with this approach is that spatial indices will always constitute a regular grid
+    # and will always be the same across all feature map activations
+    # TODO we could consider just having one integer index array (channel_idxs, w_idxs, h_idxs) instead of using a list to store channel_idxs
+    # That way it might also be possible to retrieve different non-grid spatial activations across feature map activations.
+    # but be careful when doing numpy integer array indexing, it can be a little iffy.
+    # see integer array indexing in https://numpy.org/doc/stable/reference/arrays.indexing.html
+    # TODO if we use the integer index array method then we can get a weighted output by using a corresponding weight matrix.
     def _get_activations(self, target_dict):
         """Clones the values returned by the forward hooks and returns them as a list"""
         res = []
