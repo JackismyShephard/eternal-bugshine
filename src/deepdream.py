@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import cv2 as cv
 from .utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift, save_img, Rendering
-from .utils.config import extend_path, save_image_metadata
+from .utils.config import extend_path, save
 
 #GENERAL COMMENTS:
 
@@ -48,12 +48,12 @@ def dream_process(model, dream_config, model_config, dataset_config, training_co
         path = extend_path(dream_config['output_img_path'], dream_config['img_overwrite'])
         #TODO save_config throws error due to some tensor in the model. not sure how to fix
         # QUESTION this is fixed now?
-        save_image_metadata(path, dream_config, model_config, dataset_config, training_config)
+        save(path, dream_config, model_config, dataset_config, training_config)
         save_img(output_images[-1], path)
 
     if dream_config['video_path'] is not None:
         path = extend_path(dream_config['video_path'], dream_config['video_overwrite'])
-        save_image_metadata(path, dream_config, model_config, dataset_config, training_config)
+        save(path, dream_config, model_config, dataset_config, training_config)
         make_video(output_images, dream_config['target_shape'], path)
     
     return output_images
@@ -125,7 +125,7 @@ def dream_ascent(tensor, model, iter, dream_config, model_config):
         else:
             MSE = torch.nn.MSELoss(reduction='mean')
             zeros = torch.zeros_like(layer_activation)
-            loss = MSE(layer_activation, zeros)
+            loss_part = MSE(layer_activation, zeros)
         losses.append(loss_part)
     if dream_config['loss_red'] == 'mean':
         loss = torch.mean(torch.stack(losses))

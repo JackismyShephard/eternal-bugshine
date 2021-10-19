@@ -50,7 +50,7 @@ def get_model(model_config: ModelConfig, dataset_config: DatasetConfig = None):
 
 #TODO this function is kind of redundant now and so perhaps should be moved to old
 def load_model(model, path, optim=False, get_dataloaders=False,
-               get_train_metrics=False, device=DEVICE):
+               get_train_metrics=False, device='gpu'):
     output = []
     model.load_state_dict(torch.load(
         path + '_parameters.pt', map_location=device))

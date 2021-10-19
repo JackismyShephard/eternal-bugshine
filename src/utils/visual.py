@@ -161,7 +161,7 @@ def postprocess_image(img, mean=BEETLENET_MEAN, std=BEETLENET_STD):
     return img
 
 #TODO consider using our transform.ToTensor wrapper class
-def image_to_tensor(img, device=DEVICE, requires_grad=False):
+def image_to_tensor(img, device='gpu', requires_grad=False):
     tensor = transforms.ToTensor()(img).to(device).unsqueeze(0)
     tensor.requires_grad = requires_grad
     return tensor
@@ -211,18 +211,20 @@ class Rendering():
     """
 
 
-    def __init__(self, shape):
+    def __init__(self, shape=(200,400,3), scale = 2):
         self.format = 'png'
-        start_image = np.full((200,400,3), 255).astype(np.uint8)
+        start_image = np.full(shape, 255).astype(np.uint8)
         image_stream = self.compress_to_bytes(start_image)
 
-        h, w = shape
-        self.widget = widgets.Image(value = image_stream, width=w*2, height=h*2)
+        h, w, _ = shape
+        self.widget = widgets.Image(value = image_stream, width=w*scale, height=h*scale)
         # QUESTION where is display loaded? It should be in this module.
-        display(self.widget)
+        widgets.display(self.widget) #maybe just display instead of widgets.display
 
     # To display the images, they need to be converted to a stream of bytes
     def compress_to_bytes(self, data):
+        if isinstance(data, torch.Tensor):
+            data = data.cpu().detach().numpy()
         """
             Helper function to compress image data via PIL/Pillow.
         """

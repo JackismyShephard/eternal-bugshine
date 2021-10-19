@@ -11,7 +11,7 @@ import torch
 from .custom_types import ModelConfig, TrainingConfig, DatasetConfig, PlotConfig
 
 from .visual import plot_metrics
-from .config import RNG_SEED, DEFAULT_MODEL_PATH, DEFAULT_METRICS_PATH, save_training_metadata, DEVICE
+from .config import RNG_SEED, DEFAULT_MODEL_PATH, DEFAULT_METRICS_PATH, save, DEVICE
 from ..models import save_model
 
 #IMPLEMENT smarter early stopping that calculates graph trend based on last N values
@@ -195,8 +195,7 @@ def fit(model, data_loaders, dataset_sizes,
                 model.load_state_dict(best_model_wts)
                 # TODO maybe just pass the model state dict to save rather than the model itself?
                 training_config['train_info']['trained_epochs'] = best_model_epochs
-                save_model(model, model_path+model_config['model_name'], optim=None,dataloaders=data_loaders, train_metrics=metrics)
-                save_training_metadata(model_path+model_config['model_name'], model_config, dataset_config, training_config)
+                save(model_path+model_config['model_name'], None, model_config, dataset_config, training_config, model, None, data_loaders, metrics)
                 model.load_state_dict(temp_state_dict)
             if early_stopping.early_stop:
                 training_config['train_info']['stopped_early'] = True
@@ -213,15 +212,14 @@ def fit(model, data_loaders, dataset_sizes,
     model.load_state_dict(best_model_wts)
     # QUESTION any way of avoiding the code below?
     training_config['train_info']['trained_epochs'] = best_model_epochs
-    save_model(model, model_path+model_config['model_name'], optim=None,dataloaders=data_loaders, train_metrics=metrics)
-    save_training_metadata(model_path+model_config['model_name'], model_config, dataset_config, training_config)
+    save(model_path+model_config['model_name'], None, model_config, dataset_config, training_config, model, None, data_loaders, metrics)
 
     return metrics
 #TODO Here we could give as parameter just a modelconfig along with test_loaders. 
 # The model and device will be loaded from the modelconfig and test accuracy saved to it. 
 # Or we could handle the saving of accuracy on the caller side
 # if we will always be calling this function from a fetch_model() pipeline function
-def test_model(model, test_loaders, training_config: TrainingConfig, device=DEVICE):
+def test_model(model, test_loaders, training_config: TrainingConfig, device='gpu'):
     model.eval()
     correct = 0
     total = 0
