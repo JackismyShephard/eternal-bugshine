@@ -143,69 +143,26 @@ class HookedModel(torch.nn.Module):
         self.model = copy.deepcopy(model)
         self.aux_dict: t.Dict[str, t.Any] = model.aux_dict
         self._hooks: t.Dict[str, t.Any] = {}
-        self._activations: t.Dict[str, torch.Tensor] = {}
-    
-    def show_modules(self):
-        """Prints the named modules in the internal model"""
-        all_modules = self.model.named_modules()
-        start_layers = []
-        hidden_layers = []
-        end_layers = []
-        
-        at_end = False
-        temp = []
-        current_hidden = 1
-        largest_layer = 0
-        for module in all_modules:
-            layer = module[0]
-            if layer[0:5] != 'layer':
-                if at_end:
-                    end_layers.append(layer)
-                else:
-                    start_layers.append(layer)
-
-            else:
-                at_end = True
-                if layer[5] == str(current_hidden):
-                    temp.append(layer)
-                else:
-                    hidden_layers.append(temp)
-                    if len(temp) > largest_layer:
-                        largest_layer = len(temp)
-                    temp = []
-                    current_hidden += 1
-                    temp.append(layer)
-        
-        hidden_layers.append(temp)
-        if len(temp) > largest_layer:
-            largest_layer = len(temp)
-
-        table = np.full((largest_layer, len(hidden_layers)+2), ' '*64)
-
-        # not sure why, but the layers start with an empty string
-
-        table[0:len(start_layers)-1,0] = start_layers[1:]
-        columns = ['first layers']
-
-        for i in range(len(hidden_layers)):
-            table[0:len(hidden_layers[i]), i+1] = hidden_layers[i]
-            columns.append('block ' + str(i+1))
-
-        columns.append('end layers')
-        table[0:len(end_layers), -1] = end_layers
-
-        pdf = pd.DataFrame(table, columns=columns)
-    
-        with pd.option_context('display.max_rows',None):
-            display(pdf.style.hide_index())
-
-        
+        self._activations: t.Dict[str, torch.Tensor] = {}      
 
     def _hook_into(self, name):
         """Returns a hook function meant to be registered with register_forward_hook"""
         def hook(model, input, output):
             self._activations[name] = output
         return hook
+    
+    def _register_hooks(self, module_names: t.List[str]):
+        """Registers forward hooks on the internal model modules with names in module_names"""
+        for module_name in module_names:
+            module = self.model.get_submodule(module_name)
+            self._hooks[module_name] = module.register_forward_hook(
+                self._hook_into(module_name))
+
+    def _unregister_hooks(self):
+        """Removes any registered hooks and clears the interal hook dictionary"""
+        for module_name in self._hooks.keys():
+            self._hooks[module_name].remove()
+        self._hooks.clear()
 
     #TODO in case we want to apply different weights to different activations, perhaps this should return a dictionary instead
     #TODO not sure if to('cpu') slows us down. is there a way to encapsulate the behavior of _get_activations without this?
@@ -236,18 +193,60 @@ class HookedModel(torch.nn.Module):
                 res.append(activation)
         self._activations.clear()
         return res
+    
+    def show_modules(self):
+        """Prints the named modules in the internal model"""
+        all_modules = self.model.named_modules()
+        start_layers = []
+        hidden_layers = []
+        end_layers = []
 
-    def _register_hooks(self, module_names: t.List[str]):
-        """Registers forward hooks on the internal model modules with names in module_names"""
-        for module_name in module_names:
-            module = self.model.get_submodule(module_name)
-            self._hooks[module_name] = module.register_forward_hook(self._hook_into(module_name))
+        at_end = False
+        temp = []
+        current_hidden = 1
+        largest_layer = 0
+        for module in all_modules:
+            layer = module[0]
+            if layer[0:5] != 'layer':
+                if at_end:
+                    end_layers.append(layer)
+                else:
+                    start_layers.append(layer)
 
-    def _unregister_hooks(self):
-        """Removes any registered hooks and clears the interal hook dictionary"""
-        for module_name in self._hooks.keys():
-            self._hooks[module_name].remove()
-        self._hooks.clear()
+            else:
+                at_end = True
+                if layer[5] == str(current_hidden):
+                    temp.append(layer)
+                else:
+                    hidden_layers.append(temp)
+                    if len(temp) > largest_layer:
+                        largest_layer = len(temp)
+                    temp = []
+                    current_hidden += 1
+                    temp.append(layer)
+
+        hidden_layers.append(temp)
+        if len(temp) > largest_layer:
+            largest_layer = len(temp)
+
+        table = np.full((largest_layer, len(hidden_layers)+2), ' '*64)
+
+        # not sure why, but the layers start with an empty string
+
+        table[0:len(start_layers)-1, 0] = start_layers[1:]
+        columns = ['first layers']
+
+        for i in range(len(hidden_layers)):
+            table[0:len(hidden_layers[i]), i+1] = hidden_layers[i]
+            columns.append('block ' + str(i+1))
+
+        columns.append('end layers')
+        table[0:len(end_layers), -1] = end_layers
+
+        pdf = pd.DataFrame(table, columns=columns)
+
+        with pd.option_context('display.max_rows', None):
+            display(pdf.style.hide_index())
             
     def forward(self, x: torch.Tensor, target_dict):
         """Runs forward on the internal model and returns activations for any model targets specified.
