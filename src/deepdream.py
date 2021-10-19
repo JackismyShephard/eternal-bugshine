@@ -48,12 +48,12 @@ def dream_process(model, dream_config, model_config, dataset_config, training_co
         path = extend_path(dream_config['output_img_path'], dream_config['img_overwrite'])
         #TODO save_config throws error due to some tensor in the model. not sure how to fix
         # QUESTION this is fixed now?
-        save(path, dream_config, model_config, dataset_config, training_config)
+        save(path, model_config, dataset_config, training_config,  dream_config = dream_config)
         save_img(output_images[-1], path)
 
     if dream_config['video_path'] is not None:
         path = extend_path(dream_config['video_path'], dream_config['video_overwrite'])
-        save(path, dream_config, model_config, dataset_config, training_config)
+        save(path, model_config, dataset_config, training_config,dream_config = dream_config)
         make_video(output_images, dream_config['target_shape'], path)
     
     return output_images

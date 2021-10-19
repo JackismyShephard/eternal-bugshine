@@ -78,40 +78,6 @@ BEETLE_DATASET: DatasetConfig = {
                             ]
 }
 
-mathias_params = {
-    'data_augmentations':   [
-                                RandomVerticalFlip(),
-                                RandomRotation((-3,3), fill=255),
-                                NotStupidRandomResizedCrop(min_scale=0.95, max_scale=1),
-                                RandomizeBackgroundGraytone(cutoff=0.95, 0.2, 1.0),
-                                Resize(BEETLENET_AVERAGE_SHAPE),
-                                ToTensor(),
-                                Normalize(BEETLENET_MEAN, BEETLENET_STD)
-                            ]
-}
-
-MATHIAS_DATASET = get_new_config(mathias_params, BEETLE_DATASET)
-
-RESNET34_FULL_GRAY: ModelConfig = {
-    'model_name':           'resnet34_fullytrained_gray',
-    'model_architecture':   'resnet34',
-    'pretrained':           False,
-    'device':               DEVICE
-}
-
-jens_params = {
-    'data_augmentations':   [
-                                RandomVerticalFlip(),
-                                RandomRotation((-3,3), fill=255),
-                                NotStupidRandomResizedCrop(min_scale=0.95, max_scale=1),
-                                RandomizeBackgroundRGBNoise(cutoff=0.95),
-                                Resize(BEETLENET_AVERAGE_SHAPE),
-                                ToTensor(),
-                                Normalize(BEETLENET_MEAN, BEETLENET_STD)
-                            ]
-}
-
-JENS_DATASET = get_new_config(jens_params, BEETLE_DATASET)
 
 RESNET34_FULL_RGB: ModelConfig = {
     'model_name':           'resnet34_fullytrained_rgb',
@@ -219,6 +185,42 @@ def get_new_config(param_dict, old_config: t.Union[DreamConfig, DatasetConfig, N
     return config
 
 
+mathias_params = {
+    'data_augmentations':   [
+                                RandomVerticalFlip(),
+                                RandomRotation((-3,3), fill=255),
+                                NotStupidRandomResizedCrop(min_scale=0.95, max_scale=1),
+                                RandomizeBackgroundGraytone(cutoff=0.95, min= 0.2, max=1.0, ),
+                                Resize(BEETLENET_AVERAGE_SHAPE),
+                                ToTensor(),
+                                Normalize(BEETLENET_MEAN, BEETLENET_STD)
+                            ]
+}
+
+MATHIAS_DATASET = get_new_config(mathias_params, BEETLE_DATASET)
+
+RESNET34_FULL_GRAY: ModelConfig = {
+    'model_name':           'resnet34_fullytrained_gray',
+    'model_architecture':   'resnet34',
+    'pretrained':           False,
+    'device':               DEVICE
+}
+
+jens_params = {
+    'data_augmentations':   [
+                                RandomVerticalFlip(),
+                                RandomRotation((-3,3), fill=255),
+                                NotStupidRandomResizedCrop(min_scale=0.95, max_scale=1),
+                                RandomizeBackgroundRGBNoise(cutoff=0.95),
+                                Resize(BEETLENET_AVERAGE_SHAPE),
+                                ToTensor(),
+                                Normalize(BEETLENET_MEAN, BEETLENET_STD)
+                            ]
+}
+
+JENS_DATASET = get_new_config(jens_params, BEETLE_DATASET)
+
+
 def extend_path(path, overwrite=False):
     # TODO give a better name
     if overwrite:
@@ -230,53 +232,10 @@ def extend_path(path, overwrite=False):
             i += 1
         return (root + str(i) + ext)
 
-def save_image_metadata(path, dream_config: t.Optional[DreamConfig] = None, model_config: ModelConfig, 
-                        dataset_config: DatasetConfig, training_config: TrainingConfig):
-    # QUESTION why not just append all dicts to a list (or dict), then deep copy that?
-    # perhaps this can be done before calling this function so that the interface of this function
-    # is just list_of_configs.
-    # TODO perhaps give function a better name (i recall we talked about this)
-    a = copy.deepcopy([dream_config, model_config, dataset_config, training_config])
-    (root, _) = os.path.splitext(path)
-    json_path = root + '_aux_dict.json'
-    new_config = {}
-    #convert troublesome dict entries:
-    mc_copy = copy.deepcopy(model_config)
-    dc_copy = copy.deepcopy(dataset_config)
-    tr_copy = copy.deepcopy(training_config)
-    augmentations = [str(aug) for aug in dc_copy['data_augmentations']]
-    mean = copy.deepcopy(dc_copy['mean'])
-    std = copy.deepcopy(dc_copy['std'])
-    mean = mean.tolist()
-    std = std.tolist()
-    device = str(mc_copy['device'])
-    
-    if dream_config is not None:
-        drc_copy = copy.deepcopy(dream_config)
-        new_config.update(dream_info=drc_copy)
-        new_config['dream_info']['mean'] = mean # we are assuming that the mean and std in dataset_config and model_config are the same
-        new_config['dream_info']['std'] = std
 
-    new_config.update(model_info=mc_copy)
-    new_config.update(dataset_info=dc_copy)
-    new_config.update(train_info=tr_copy)
-    new_config['dataset_info']['data_augmentations'] = augmentations
-    new_config['model_info']['device'] = device
-    new_config['dataset_info']['mean'] = mean
-    new_config['dataset_info']['std'] = std
-
-    new_config['train_info']['optim'] = str(new_config['train_info']['optim'])
-    new_config['train_info']['criterion'] = str(new_config['train_info']['criterion'])
-    new_config['train_info']['early_stopping'] = str(new_config['train_info']['early_stopping'])
-    new_config['train_info']['scheduler'] = str(new_config['train_info']['scheduler'])
-    
-    with open(json_path, 'w') as json_file:
-        json.dump(new_config, json_file, indent = 4)
-
-
-def save(path, dream_config: t.Optional[DreamConfig] = None, model_config: ModelConfig, 
+def save(path, model_config: ModelConfig, 
                         dataset_config: DatasetConfig, training_config: TrainingConfig,
-                        model = None, optim = None, dataloaders = None, train_metrics = None):
+                        model = None, optim = None, dataloaders = None, train_metrics = None, dream_config: t.Optional[DreamConfig] = None):
     (root, _) = os.path.splitext(path)
     json_path = root + '_aux_dict.json'
 
@@ -303,8 +262,8 @@ def save(path, dream_config: t.Optional[DreamConfig] = None, model_config: Model
     new_config['model_info']['device'] = str(new_config['model_info']['device'])
     new_config['dataset_info']['mean'] = new_config['dataset_info']['mean'].tolist()
     new_config['dataset_info']['std'] = new_config['dataset_info']['std'].tolist()
-    new_config['dream_info']['mean'] = new_config['dataset_info']['mean'].tolist() # we are assuming that the mean and std in dataset_config and model_config are the same
-    new_config['dream_info']['std'] = new_config['dataset_info']['std'].tolist()
+    new_config['dream_info']['mean'] = new_config['dream_info']['mean'].tolist() # we are assuming that the mean and std in dataset_config and model_config are the same
+    new_config['dream_info']['std'] = new_config['dream_info']['std'].tolist()
 
     new_config['train_info']['optim'] = str(new_config['train_info']['optim'])
     new_config['train_info']['criterion'] = str(new_config['train_info']['criterion'])

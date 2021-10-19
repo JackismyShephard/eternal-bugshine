@@ -195,7 +195,7 @@ def fit(model, data_loaders, dataset_sizes,
                 model.load_state_dict(best_model_wts)
                 # TODO maybe just pass the model state dict to save rather than the model itself?
                 training_config['train_info']['trained_epochs'] = best_model_epochs
-                save(model_path+model_config['model_name'], None, model_config, dataset_config, training_config, model, None, data_loaders, metrics)
+                save(model_path+model_config['model_name'], model_config, dataset_config, training_config, model, None, data_loaders, metrics, None)
                 model.load_state_dict(temp_state_dict)
             if early_stopping.early_stop:
                 training_config['train_info']['stopped_early'] = True
@@ -212,7 +212,7 @@ def fit(model, data_loaders, dataset_sizes,
     model.load_state_dict(best_model_wts)
     # QUESTION any way of avoiding the code below?
     training_config['train_info']['trained_epochs'] = best_model_epochs
-    save(model_path+model_config['model_name'], None, model_config, dataset_config, training_config, model, None, data_loaders, metrics)
+    save(model_path+model_config['model_name'], model_config, dataset_config, training_config, model, None, data_loaders, metrics, None)
 
     return metrics
 #TODO Here we could give as parameter just a modelconfig along with test_loaders. 

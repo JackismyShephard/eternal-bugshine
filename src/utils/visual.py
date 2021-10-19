@@ -13,7 +13,6 @@ from skimage.util import random_noise
 # used for image rendering
 import io
 from ipywidgets import widgets
-from IPython import display
 
 from .config import BEETLENET_MEAN, BEETLENET_STD, RNG_SEED, DEVICE
 from .custom_types import PlotConfig
@@ -211,15 +210,15 @@ class Rendering():
     """
 
 
-    def __init__(self, shape=(200,400,3), scale = 2):
+    def __init__(self, shape=(200,400), scale = 2):
         self.format = 'png'
-        start_image = np.full(shape, 255).astype(np.uint8)
+        h, w = shape
+        start_image = np.full((h,w,3), 255).astype(np.uint8)
         image_stream = self.compress_to_bytes(start_image)
 
-        h, w, _ = shape
         self.widget = widgets.Image(value = image_stream, width=w*scale, height=h*scale)
         # QUESTION where is display loaded? It should be in this module.
-        widgets.display(self.widget) #maybe just display instead of widgets.display
+        display(self.widget) 
 
     # To display the images, they need to be converted to a stream of bytes
     def compress_to_bytes(self, data):
