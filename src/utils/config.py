@@ -3,10 +3,12 @@ import torchvision.transforms
 from .transforms import *
 import multiprocessing as mp
 import numpy as np
+from pathlib import Path
 from numpy import typing as npt
 import copy
 import os
 import json
+import getpass
 from .custom_types import *
 
 RNG_SEED = 0x1010101
@@ -22,8 +24,17 @@ BEETLENET_PATH = 'data/beetles/images/' # TODO we should make paths invariant to
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
+DEFAULT_OUTPUT_PATH = './output/' + getpass.getuser() + '/'
+def mkdir_user():
+    path = './output/' + getpass.getuser() + '/'
+    Path(path).mkdir(exist_ok=True, parents=True)
+    return path
+
+
+#TODO consider also saving all things related to models under DEFAULT_OUTPUT_PATH
 DEFAULT_MODEL_PATH = './models/'
-DEFAULT_METRICS_PATH = './figures/'
+DEFAULT_METRICS_PATH = DEFAULT_OUTPUT_PATH + 'figures/'
 
 DREAM_CONFIG: DreamConfig = {
     'out_info': {'fc': None}, #None = whole layer, otherwise specify index as tuple (y,x). #TODO update comment?
