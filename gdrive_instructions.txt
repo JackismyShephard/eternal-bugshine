@@ -1,3 +1,8 @@
+NOTE: Google Drive for Desktop is not available on linux. 
+There does not seem to be any easy way of achieving the same functionality there. 
+IT is possible to backup your local folders to google drive though. You can also
+experiment with solutions using many of the CLI applications that are available.
+
 1) Download Google Drive for Desktop (not backup and sync)
 2) Make a google account (for more gdrive space) or login with your existing account
 3) Go to Preferences and check Launch Google Drive on system startup
