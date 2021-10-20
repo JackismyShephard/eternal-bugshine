@@ -10,14 +10,11 @@ from .utils.custom_types import *
 from .utils.config import DEFAULT_METRICS_PATH, DEFAULT_MODEL_PATH, DEVICE
 from .utils.transforms import string_to_class
 
-##GENERAL COMMENTS
-#TODO make general get_model function which encapsulates the whole pipeline of (possibly) loading model config
-# downloading a corresponding torch model, updating parameters and dicts, training the model, testing the model
-# possibly saving the model and finally hooking the model.
 
 
 
-#TODO rename to download_model
+
+
 def get_model(model_config: ModelConfig, dataset_config: DatasetConfig = None):
     name = model_config['model_architecture']
     pretrained = model_config['pretrained']
@@ -38,17 +35,12 @@ def get_model(model_config: ModelConfig, dataset_config: DatasetConfig = None):
     else:
         num_classes = model.fc.in_features
     model = model.to(device)
-    # TODO just add the model module to model_config instead of adding aux_dict to model perhaps?
-    # we already have train_iters (or equivalent) saved in training_config['training_info']
-    # , 'name' and 'pretrained' saved in model_config so we just need to remember to save
-    # test_acc to model_config also
     model.aux_dict = {'name': name, 'pretrained': pretrained, 
                       'num_classes': num_classes, 'train_iters': 0, 'test_acc': None}
-    # and then we dont need to return anything here
     return model
 
 
-#TODO this function is kind of redundant now and so perhaps should be moved to old
+
 def load_model(model, path, optim=False, get_dataloaders=False,
                get_train_metrics=False, device='gpu'):
     output = []
@@ -68,13 +60,6 @@ def load_model(model, path, optim=False, get_dataloaders=False,
         output.append(metrics)
     return output
 
-# TODO consider giving just model name, model path prefix and device as parameters.
-# Then we can first load in all the relevant dicts, then find and add 
-# the relevant model module to the loaded model dict (along with relevant metadata)
-# using get_model() and finally update the parameters of this model with the saved model
-# parameters.
-# TODO consider making loading of metrics and optimizer state optional 
-# #or remove the corresponding options from save_model
 def load_model_weights_and_metrics(model: torch.nn.Module, model_config: ModelConfig):
     device = model_config['device']
     path = DEFAULT_MODEL_PATH + model_config['model_name']
@@ -91,8 +76,7 @@ def load_model_weights_and_metrics(model: torch.nn.Module, model_config: ModelCo
     old_config['model_info']['device'] = torch.device(old_config['model_info']['device'])
     return metrics, old_config['model_info'], old_config['dataset_info'], old_config['train_info']
 
-#TODO I think this model should also call save_training_metadata (or similar meta data saving functions)
-#TODO Consider removing saving of dataloaders as we wont be using them. 
+
 def save_model(model, path, optim=None,dataloaders=None, train_metrics=None):
 
     torch.save(model.state_dict(), path + '_parameters.pt')
@@ -103,7 +87,6 @@ def save_model(model, path, optim=None,dataloaders=None, train_metrics=None):
     if train_metrics is not None:
         np.save(path + '_train_metrics.npy', train_metrics)
 
-#TODO We might consider removing this later (or moving into old)
 class Exposed_model(torch.nn.Module):
     def __init__(self, model, flatten_layer):
         super().__init__()
@@ -166,19 +149,7 @@ class HookedModel(torch.nn.Module):
 
     #TODO in case we want to apply different weights to different activations, perhaps this should return a dictionary instead
     #TODO not sure if to('cpu') slows us down. is there a way to encapsulate the behavior of _get_activations without this?
-        #QUESTION why do we need to clone?
-        #QUESTION why do we need to transfer to cpu arent we doing this later anyways?
 
-    #TODO First axis is batch axis. We might consider parametrizing our hooked model so that it works
-    # with more than one example in the batch dimension (not relevant right now but might be later)
-    # TODO perhaps make it clear that each index in list should be a tuple (channel_idx, w_idx, h_idx) where w_idx and h_idx can be lists themselves.
-    # The problem with this approach is that spatial indices will always constitute a regular grid
-    # and will always be the same across all feature map activations
-    # TODO we could consider just having one integer index array (channel_idxs, w_idxs, h_idxs) instead of using a list to store channel_idxs
-    # That way it might also be possible to retrieve different non-grid spatial activations across feature map activations.
-    # but be careful when doing numpy integer array indexing, it can be a little iffy.
-    # see integer array indexing in https://numpy.org/doc/stable/reference/arrays.indexing.html
-    # TODO if we use the integer index array method then we can get a weighted output by using a corresponding weight matrix.
     def _get_activations(self, target_dict):
         """Clones the values returned by the forward hooks and returns them as a list"""
         res = []
@@ -257,7 +228,7 @@ class HookedModel(torch.nn.Module):
         self._unregister_hooks()
         return x, self._get_activations(target_dict)
 
-# TODO these should probably be removed too
+
 class Dreamnet50(Exposed_model):
     def __init__(self, model):
         super().__init__(model, 'fc')
