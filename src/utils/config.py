@@ -18,9 +18,9 @@ IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 BEETLENET_MEAN = np.array([0.8442649, 0.82529384, 0.82333773], dtype=np.float32)
 BEETLENET_STD = np.array([0.28980458, 0.32252666, 0.3240354], dtype=np.float32)
-BEETLENET_AVERAGE_SHAPE = (224, 448) # the average shape is about (200, 400).
+BEETLENET_AVERAGE_SHAPE = (224, 448)
 
-BEETLENET_PATH = 'data/beetles/images/' # TODO we should make paths invariant to current root if possible
+BEETLENET_PATH = 'data/beetles/images/' 
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -31,12 +31,12 @@ def mkdir_user():
     return DEFAULT_OUTPUT_PATH
 
 
-#TODO consider also saving all things related to models under DEFAULT_OUTPUT_PATH
+
 DEFAULT_MODEL_PATH = './models/'
 DEFAULT_METRICS_PATH = DEFAULT_OUTPUT_PATH + 'figures/'
 
 DREAM_CONFIG: DreamConfig = {
-    'out_info': {'fc': None}, #None = whole layer, otherwise specify index as tuple (y,x). #TODO update comment?
+    'out_info': {'fc': None}, #None = whole layer, otherwise specify index as tuple (y,x). 
     'mean': BEETLENET_MEAN,
     'std': BEETLENET_STD,
     'input_img_path': None,
@@ -51,7 +51,7 @@ DREAM_CONFIG: DreamConfig = {
     'loss_red': 'mean',
     'norm_type': 'standardize',
     'eps': 10e-8,
-    'smooth': True, # TODO remove this parameter in conjunction with refactoring gradient smoothing
+    'smooth': True, 
     'kernel_size': 9,
     'smooth_coef': 0.5,
     'clamp_type': 'standardize',
@@ -67,8 +67,8 @@ DREAM_CONFIG: DreamConfig = {
 }
 
 BEETLE_DATASET: DatasetConfig = {
-    'image_folder_path':    './data/beetles/images/',  #TODO use BEETLENET_PATH
-    'num_classes':          197, #TODO consider using image_folder_classes to get current number of classes as default
+    'image_folder_path':    './data/beetles/images/',  
+    'num_classes':          197, 
     'batch_size':           32,
     'num_workers':          (mp.cpu_count()//2),
     'rng_seed':             RNG_SEED,
@@ -156,8 +156,7 @@ DEFAULT_TRAINING: TrainingConfig = {
     'train_info':           {'num_epochs': 400, 'trained_epochs': 0, 
                              'lr_decay': 0.995, 'stopped_early': False,
                              'test_acc':   0},
-}  # TODO test_accuracy is not related to training really, so it should rather be saved
-   # in a model config (where the associated model module could also be saved)
+}  
 
 DEFAULT_PLOTTING: PlotConfig = {
     'size_h':               7,
@@ -186,7 +185,7 @@ DEFAULT_PLOTTING: PlotConfig = {
 }
 
 def get_new_config(param_dict, old_config: t.Union[DreamConfig, DatasetConfig, None] = None):
-    # QUESTION why dont we allow other config types to be updated?
+    
     if old_config is None:
         raise TypeError('Config must not be None. See src/utils/config.py for default configs')
     config = copy.deepcopy(old_config)
@@ -232,7 +231,6 @@ JENS_DATASET = get_new_config(jens_params, BEETLE_DATASET)
 
 
 def extend_path(path, overwrite=False):
-    # TODO give a better name
     if overwrite:
         return path
     else:
@@ -272,7 +270,7 @@ def save(path, model_config: ModelConfig,
     new_config['model_info']['device'] = str(new_config['model_info']['device'])
     new_config['dataset_info']['mean'] = new_config['dataset_info']['mean'].tolist()
     new_config['dataset_info']['std'] = new_config['dataset_info']['std'].tolist()
-    new_config['dream_info']['mean'] = new_config['dream_info']['mean'].tolist() # we are assuming that the mean and std in dataset_config and model_config are the same
+    new_config['dream_info']['mean'] = new_config['dream_info']['mean'].tolist()
     new_config['dream_info']['std'] = new_config['dream_info']['std'].tolist()
 
     new_config['train_info']['optim'] = str(new_config['train_info']['optim'])

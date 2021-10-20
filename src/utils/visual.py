@@ -89,8 +89,6 @@ def plot_metrics(plot_config: PlotConfig, x, metrics, save_path=None):
     plt.show()
     plt.close()
 
-
-# TODO add else branch returning error
 def reshape_image(img, shape):
     if isinstance(shape, int):
         current_height, current_width = img.shape[:2]
@@ -104,7 +102,7 @@ def reshape_image(img, shape):
             
     return new_img
 
-# TODO sigma in skfilt.gaussian and scale in np.random.normal should be parameterized
+
 # QUESTION why are we using mode = 'reflect'?
 def get_noise_image(type, shape):
     if type == 'uniform':
@@ -159,7 +157,6 @@ def postprocess_image(img, mean=BEETLENET_MEAN, std=BEETLENET_STD):
     img = (img*255).astype(np.uint8)
     return img
 
-#TODO consider using our transform.ToTensor wrapper class
 def image_to_tensor(img, device='gpu', requires_grad=False):
     tensor = transforms.ToTensor()(img).to(device).unsqueeze(0)
     tensor.requires_grad = requires_grad
@@ -202,8 +199,6 @@ def make_video(images, shape, path):
 
 # TODO implement more features and make it more dynamic
 # TODO make it more pretty
-# TODO start image shape dims and scaling of new image shape should be parameterized
-# TODO add a more comprehensive explanation of the function
 class Rendering():
     """
         Class for rendering dreamt images.
