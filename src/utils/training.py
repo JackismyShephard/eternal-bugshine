@@ -55,8 +55,6 @@ class EarlyStopping():
         return self.__class__.__name__ + '({})'.format(args)
 
 
-#IMPLEMENT rolling average
-# TODO incorporate model into model_config and data_loaders, dataset_sizes into dataset_config or similar dicts
 def fit(model, data_loaders, dataset_sizes,
         model_config: ModelConfig, training_config: TrainingConfig, dataset_config: DatasetConfig, 
         plot_config: PlotConfig,
@@ -75,22 +73,18 @@ def fit(model, data_loaders, dataset_sizes,
     val_loss_avg, val_acc_avg = [], []
     epochs = []
     
-    # TODO since we already have criterion in training_config why not just add cross_entropy as default there?
     criterion = torch.nn.CrossEntropyLoss()
 
     optim_args = training_config['optim_args']
-    # TODO the same could be said about the optimizer.
     optimizer = torch.optim.Adam(model.parameters(), lr=optim_args['lr'], eps=optim_args['eps'])
 
     lr_decay = training_config['train_info']['lr_decay']
-    # TODO also consider the same for scheduler
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_decay)
 
     es_args = training_config['early_stopping_args']
-    # TODO The same
     early_stopping = EarlyStopping(min_epochs = es_args['min_epochs'], 
                         patience=es_args['patience'], min_delta=es_args['min_delta'])
-    # TODO add these as parameters in eg training_config
+
     metrics_path = DEFAULT_METRICS_PATH
     model_path   = DEFAULT_MODEL_PATH
     
@@ -126,9 +120,7 @@ def fit(model, data_loaders, dataset_sizes,
 
                     with torch.set_grad_enabled(phase == 'train'):
                     
-                        # TODO make this part of the code a subprocedure that can switched in and out, eg give it as a parameter
-                        # So that we can later apply training to models with a more complicated output format as well as using different
-                        # metrics
+                       
                         outputs = model(inputs)
                         _, preds = torch.max(outputs, 1)
                         loss = criterion(outputs, labels)
@@ -139,7 +131,6 @@ def fit(model, data_loaders, dataset_sizes,
                             optimizer.step()
 
                     # statistics
-                # TODO if we implement the above TODO then this code might also need to be changed depending on which metrics and model are used
                     running_loss += loss.item() * inputs.size(0)
                     running_corrects += torch.sum(preds == labels.data)
                 epoch_loss = running_loss / dataset_sizes[phase]
@@ -161,14 +152,12 @@ def fit(model, data_loaders, dataset_sizes,
                     val_loss_avg.append(np.mean(val_loss[-plot_config['rolling_avg_window']:len(val_loss)]))
                     val_acc_avg.append(np.mean(val_acc[-plot_config['rolling_avg_window']:len(val_acc)]))
                     
-                    # TODO consider choosing final model based on loss and not accuracy
-
                     if epoch_acc > best_acc:
                         best_acc = epoch_acc
                         best_model_wts = copy.deepcopy(model.state_dict())
                         best_model_epochs = int(epoch)
                     early_stopping(epoch_loss)
-            # TODO this clear == notebook might need to be changed if we are using widgets
+
             if clear == 'notebook':
                 clear_output(wait=True)
             elif clear == 'terminal':
@@ -193,7 +182,6 @@ def fit(model, data_loaders, dataset_sizes,
             if epoch % save_interval == 0:
                 temp_state_dict = copy.deepcopy(model.state_dict())
                 model.load_state_dict(best_model_wts)
-                # TODO maybe just pass the model state dict to save rather than the model itself?
                 training_config['train_info']['trained_epochs'] = best_model_epochs
                 save(model_path+model_config['model_name'], model_config, dataset_config, training_config, model, None, data_loaders, metrics, None)
                 model.load_state_dict(temp_state_dict)
@@ -206,7 +194,6 @@ def fit(model, data_loaders, dataset_sizes,
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
-    # TODO maybe also print best loss
     print('Best val Acc: {:4f}'.format(best_acc))
     # load best model weights
     model.load_state_dict(best_model_wts)
@@ -215,10 +202,7 @@ def fit(model, data_loaders, dataset_sizes,
     save(model_path+model_config['model_name'], model_config, dataset_config, training_config, model, None, data_loaders, metrics, None)
 
     return metrics
-#TODO Here we could give as parameter just a modelconfig along with test_loaders. 
-# The model and device will be loaded from the modelconfig and test accuracy saved to it. 
-# Or we could handle the saving of accuracy on the caller side
-# if we will always be calling this function from a fetch_model() pipeline function
+
 def test_model(model, test_loaders, training_config: TrainingConfig, device='gpu'):
     model.eval()
     correct = 0
