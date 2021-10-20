@@ -11,21 +11,12 @@ import cv2 as cv
 from .utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift, save_img, Rendering
 from .utils.config import extend_path, save
 
-#GENERAL COMMENTS:
-
-#TODO find a practical approach to storing gifs and model data outside of git, preferrably programatically
-#TODO research realtime rendering of image outputs from dreamspace
-#TODO consider if dreamspace should be a class
-#TODO REFACTOR dreamspace to generalize scale space function
-#TODO IMPLEMENT learning rate per scale level
-#TODO IMPLEMENT Laplacian deblurring scale space function
-#TODO IMPLEMENT Gaussian kernel convolution scale space function
 
 
 
 
-#TODO consider merging all the different configs into one input config file
-#TODO we could also consider just merging the (hooked) model param into this config file
+
+
 def dream_process(model, dream_config, model_config, dataset_config, training_config, img = None):
     if img is not None:
         pass
@@ -37,17 +28,14 @@ def dream_process(model, dream_config, model_config, dataset_config, training_co
     else:
         img = get_noise_image(dream_config['noise'], dream_config['target_shape'])
     
-    # TODO somehow parametrize the preprocessing here (we already have a function for this)
     img = (img - dream_config['mean']) / dream_config['std']
     output_images = dreamspace(img, model, dream_config, model_config)
 
-    # TODO consider saving gif and normal image to same folder, preferably in a hierarchy based on model
-    # Then we also just need to save one config file
+
 
     if dream_config['output_img_path'] is not None:
         path = extend_path(dream_config['output_img_path'], dream_config['img_overwrite'])
         #TODO save_config throws error due to some tensor in the model. not sure how to fix
-        # QUESTION this is fixed now?
         save(path, model_config, dataset_config, training_config,  dream_config = dream_config)
         save_img(output_images[-1], path)
 
@@ -60,12 +48,11 @@ def dream_process(model, dream_config, model_config, dataset_config, training_co
 
 
 
-#TODO Consider merging configs here too
+
 def dreamspace(img, model, dream_config, model_config):
-    #model.register_hooks(config['out_info']) #register for activations in dream_ascent
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
-    # TODO can we make this if statement redundant?
+    
     if dream_config['show'] == True:
         render = Rendering(dream_config['target_shape'])
 
@@ -84,7 +71,6 @@ def dreamspace(img, model, dream_config, model_config):
             output_image = postprocess_image(img, dream_config['mean'],dream_config['std'])
             if dream_config['show'] == True:
                 render.update(output_image)
-                #TODO we can remove the code below when the above works
                 #clear_output(wait=True)
                 #show_img(output_image, figsize=dream_config['figsize'], show_axis='off', 
                             #dpi=dream_config['dpi'])
@@ -93,14 +79,11 @@ def dreamspace(img, model, dream_config, model_config):
                 output_images.append(output_image)
 
             scaled_tensor = deshifted_tensor
-    #QUESTION can this code be removed?
     #model.unregister_hooks() #unregister hooks used in dream_ascent
     #model.clear_activations()
     return output_images
 
 #TODO figure out if rescaling leaves artifacts in output image
-#TODO move the image_to_tensor call outside of this function 
-# in preparation for general parametrization of scale_level functionality
 def scale_level(img, start_size, level, ratio=1.8,
                 levels=4, device='cuda'):
     exponent = level - levels + 1
@@ -111,7 +94,7 @@ def scale_level(img, start_size, level, ratio=1.8,
     return scaled_tensor
 
 
-#TODO Consider merging configs here too
+
 def dream_ascent(tensor, model, iter, dream_config, model_config):
     ## get activations
     _, activations = model(tensor, dream_config['out_info'])
@@ -135,7 +118,7 @@ def dream_ascent(tensor, model, iter, dream_config, model_config):
     loss.backward()
     grad = tensor.grad.data
     ### gaussian smoothing
-    #TODO get rid of this if statement
+    
     if dream_config['smooth'] == True:
         sigma = ((iter + 1) / dream_config['num_iters']
                  ) * 2.0 + dream_config['smooth_coef']
@@ -169,7 +152,6 @@ def dream_ascent(tensor, model, iter, dream_config, model_config):
     tensor.data = torch.clip(tensor, image_min, image_max)
     return tensor
 
-#TODO implement our own gradient smoothing
 class CascadeGaussianSmoothing(nn.Module):
     """
     Apply gaussian smoothing separately for each channel (depthwise convolution).
