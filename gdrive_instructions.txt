@@ -1,0 +1,20 @@
+1) Download Google Drive for Desktop (not backup and sync)
+2) Make a google account (for more gdrive space) or login with your existing account
+3) Go to Preferences and check Launch Google Drive on system startup
+4) Return to main menu and select Google Drive (Folders from drive)
+5) Select Mirror files and select the eternal-bugshine/output folder. 
+   Now your local output folder will be your google myDrive folder,
+   meaning the content in your output folder will synchronize to google Drive
+   and any other devices for which you have done 1)-5)
+6) Make a subfolder based on your username in the output folder and move all old output into it.
+   All dreamt images and gifs should now by default be saved to figures and videos subfolders in this folder
+   (consider just saving both to the same subfolder so as to not duplicate json files)
+7) Go to Google Drive online and optionally share subfolders in your MyDrive with other team members.
+   I recommend setting privileges to read or comment only. The reason for this is 
+        1) To avoid different team member overwriting previous changing when running automated code 
+        2) To avoid wasting gdrive space. When a user uploads to a folder shared by another person, that upload still counts
+           towards his storage quota.
+8) Now optionally copy (not just make a shortcut) any folders shared with you into your MyDrive folder (CTRL+Z i believe is the command)
+   The shared folders will now be synchronized with your MyDrive folder. If you do not have write access then you cannot modify or create any files
+   inside the shared folders, neither on the gdrive online or locally. If the shared folder administrator changes your privileges to write later
+   then you will be able to add and modify files again, but any changes made in the mean time will not be synchronized. 
