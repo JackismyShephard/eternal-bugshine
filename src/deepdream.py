@@ -79,8 +79,6 @@ def dreamspace(img, model, dream_config, model_config):
                 output_images.append(output_image)
 
             scaled_tensor = deshifted_tensor
-    #model.unregister_hooks() #unregister hooks used in dream_ascent
-    #model.clear_activations()
     return output_images
 
 #TODO figure out if rescaling leaves artifacts in output image
