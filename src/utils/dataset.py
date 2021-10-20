@@ -17,7 +17,7 @@ from .custom_types import *
 
 def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip',
                      zip_name='beetles.zip', folder_name='beetles',
-                     force_download=False, root='./data/'):
+                     force_download=False, root='./data/', min_examples = 10):
     ssl._create_default_https_context = ssl._create_unverified_context
     archive = os.path.join(root, zip_name)
     data_folder = os.path.join(root, folder_name)
@@ -27,7 +27,7 @@ def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip
     image_folder_dirs = os.walk(data_folder+'/images/')
     next(image_folder_dirs)
     for root, _, files in image_folder_dirs:
-        if len(files) < 10:
+        if len(files) < min_examples:
             print(root)
             for name in files:
                 os.remove(os.path.join(root, name))
@@ -59,7 +59,7 @@ def image_folder_dims(data_folder, ext = 'jpg', load_path = None, save_path = No
 def image_folder_classes(data_folder):
      return len(next(os.walk(data_folder))[1])
 
-def list_classes(dataset_config: DatasetConfig):
+def list_classes(dataset_config: DatasetConfig, h_split = 6):
     classes = os.listdir(dataset_config['image_folder_path'])
     classes = np.array(classes).reshape(-1,1)
     class_nr = np.arange(classes.shape[0]).astype(str).reshape(-1,1)
@@ -67,7 +67,6 @@ def list_classes(dataset_config: DatasetConfig):
     table = np.hstack((class_nr, classes))
 
     # reorganise to use the horizontal space better
-    h_split = 6
     even_div = table.shape[0]//h_split + 1
     remaining = even_div * 6 - table.shape[0]
     placeholder = np.full((remaining, 2), ' ')
@@ -120,22 +119,18 @@ def get_class_example_image2(i, dataset_config: DatasetConfig):
     path = os.path.join(path_prefix, path_suffix)
     return cv.imread(path)[:, :, ::-1]
 
-def split_dataset(dataset, train_ratio, val_ratio):
-    train_size = int(train_ratio * len(dataset))
-    val_size = int(val_ratio * (len(dataset) - train_size))
-    test_size = len(dataset) - (train_size + val_size)
-    dataset_sizes = {'train': train_size, 'val': val_size, 'test': test_size}
-    train_data, val_data, test_data = random_split(dataset, dataset_sizes.values(),
-                                                    generator=torch.manual_seed(RNG_SEED))
-    return train_data, val_data, test_data, dataset_sizes
 
-def split_dataset_stratified(dataset, train_ratio, val_ratio):
-
+def split_dataset_stratified(dataset, train_ratio = 0.8, val_ratio = 0.5):
+    '''Performs a stratified split of a dataset into training, validation and test sets.
+       train_ratio indicates the relative ratio of training examples with respect to the original dataset.
+       val_ratio indicates the relative ratio of validation examples with respect to the dataset minus the training
+       examples
+    '''
     dataset_indices = list(range(len(dataset.targets)))
     train_indices, test_indices = train_test_split(dataset_indices, train_size=train_ratio, 
                                                     stratify=dataset.targets, random_state=RNG_SEED)
-    new_targets = np.delete(dataset.targets, test_indices, axis=0)
-    train_indices, val_indices  = train_test_split(train_indices, train_size=train_ratio, 
+    new_targets = np.delete(dataset.targets, train_indices, axis=0)
+    val_indices, test_indices  = train_test_split(test_indices, train_size=val_ratio, 
                                                     stratify=new_targets, random_state=RNG_SEED)
     train_data  = Subset(dataset, train_indices)
     test_data   = Subset(dataset, test_indices)
@@ -203,23 +198,10 @@ class TransformsDataset(Dataset):
     def __len__(self):
         return len(self.subset)
 
-def default_transform(train_data, val_data, test_data, shape = (224, 448), 
-                        mean = BEETLENET_MEAN, std = BEETLENET_STD):
-    
-    resize = transforms.Resize(shape)
-    tensorfy = transforms.ToTensor()
-    normalize = transforms.Normalize(mean, std)
-    transform = transforms.Compose([resize, tensorfy, normalize])
-    train_data_T = TransformsDataset(train_data, transform)
-    val_data_T = TransformsDataset(val_data, transform)
-    test_data_T = TransformsDataset(test_data, transform)
 
-    return train_data_T, val_data_T, test_data_T
-
-def apply_transforms(transform_list, train_data, val_data , test_data):
-    default_shape = BEETLENET_AVERAGE_SHAPE
-    default_mean = BEETLENET_MEAN
-    default_std  = BEETLENET_STD
+def apply_transforms(transform_list, train_data, val_data , test_data, 
+                        default_shape = BEETLENET_AVERAGE_SHAPE, 
+                        default_mean = BEETLENET_MEAN, default_std = BEETLENET_STD):
     
     default_transforms = transforms.Compose([
         transforms.Resize(default_shape),
