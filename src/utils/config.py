@@ -27,9 +27,8 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 DEFAULT_OUTPUT_PATH = './output/' + getpass.getuser() + '/'
 def mkdir_user():
-    path = './output/' + getpass.getuser() + '/'
-    Path(path).mkdir(exist_ok=True, parents=True)
-    return path
+    Path(DEFAULT_OUTPUT_PATH).mkdir(exist_ok=True, parents=True)
+    return DEFAULT_OUTPUT_PATH
 
 
 #TODO consider also saving all things related to models under DEFAULT_OUTPUT_PATH
