@@ -14,7 +14,7 @@ class DreamConfig(t.TypedDict, total=False):
     std:                npt.NDArray[np.float32]
     input_img_path:     t.Optional[str]
     target_shape:       t.Union[int, t.Tuple[int, int]]
-    # TODO consider making noise_corellation a parameter separate to noise
+
     noise:              t.Optional[t.Literal[   'uniform', 
                                                 'gaussian', 
                                                 'correlated_uniform', 
@@ -29,7 +29,6 @@ class DreamConfig(t.TypedDict, total=False):
     norm_type:          t.Literal['standardize', 'abs_mean']
     eps:                float
     smooth:             bool
-    # TODO kernel size should be both a scalar and a tuple, but right now cascade gaussian is buggy
     kernel_size:        int
     smooth_coef:        float
     clamp_type:         t.Literal['standardize', 'unit', 'neg-unit']
@@ -67,8 +66,6 @@ class DatasetConfig(t.TypedDict, total=True):
     """The average image dimensions of the dataset"""
     data_augmentations:         t.List[t.Union[torch.nn.Module, object]]
     """List of data augmentations that should be applied to the training set"""
-    # QUESTION why do we have to include general objects? this kind of defeats the purpose a declaring a type.
-    # TODO define our own type for transformations?
     batch_size:                 int
     """Batch size for the dataloaders"""
     num_workers:                int
@@ -88,7 +85,7 @@ class EarlyStoppingArgs(t.TypedDict, total=True):
     """Holds parameters used to determine early stopping during training"""
     min_epochs:                 int
     patience:                   int
-    min_delta:                  int # TODO this should really be a float
+    min_delta:                  int 
 
 class TrainingInformation(t.TypedDict, total=True):
     """Holds information about a training session"""
@@ -100,10 +97,9 @@ class TrainingInformation(t.TypedDict, total=True):
 
 class TrainingConfig(t.TypedDict, total=True):
     """Describes parameters used for training, besides model and dataset"""
-    optim:                      t.Optional[torch.optim.Optimizer] # QUESTION why an optional for optim? we always need an optimizer
-    optim_args:                 t.Dict[str, float] # QUESTION why not just use OptimArgs?
-    criterion:                  t.Optional[torch.nn.Module] # TODO consider defining our own loss type including relevant loss functions
-    # TODO use torch.optim.lr_schedule instead of object for scheduler class
+    optim:                      t.Optional[torch.optim.Optimizer]
+    optim_args:                 t.Dict[str, float]
+    criterion:                  t.Optional[torch.nn.Module]
     scheduler:                  t.Optional[object]
     early_stopping:             t.Optional[object] # QUESTION cant we just use our class name EarlyStopping here?
     early_stopping_args:        t.Dict[str, int] # QUESTION again why not use EarlyStoppingArgs definition?

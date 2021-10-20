@@ -18,7 +18,6 @@ from .custom_types import *
 def download_dataset(url='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip',
                      zip_name='beetles.zip', folder_name='beetles',
                      force_download=False, root='./data/'):
-    #TODO consider parametrizing the minimum number of class examples
     ssl._create_default_https_context = ssl._create_unverified_context
     archive = os.path.join(root, zip_name)
     data_folder = os.path.join(root, folder_name)
@@ -122,7 +121,6 @@ def get_class_example_image2(i, dataset_config: DatasetConfig):
     return cv.imread(path)[:, :, ::-1]
 
 def split_dataset(dataset, train_ratio, val_ratio):
-    # TODO this function can probably be deleted now
     train_size = int(train_ratio * len(dataset))
     val_size = int(val_ratio * (len(dataset) - train_size))
     test_size = len(dataset) - (train_size + val_size)
@@ -132,8 +130,7 @@ def split_dataset(dataset, train_ratio, val_ratio):
     return train_data, val_data, test_data, dataset_sizes
 
 def split_dataset_stratified(dataset, train_ratio, val_ratio):
-    #TODO val_ratio is not used. with train_ratio = 0.9 we get a split of 0.81 train data, 
-    # 0.09 val_data and 0.10 test data
+
     dataset_indices = list(range(len(dataset.targets)))
     train_indices, test_indices = train_test_split(dataset_indices, train_size=train_ratio, 
                                                     stratify=dataset.targets, random_state=RNG_SEED)
@@ -208,7 +205,7 @@ class TransformsDataset(Dataset):
 
 def default_transform(train_data, val_data, test_data, shape = (224, 448), 
                         mean = BEETLENET_MEAN, std = BEETLENET_STD):
-    #TODO consider removing this function later
+    
     resize = transforms.Resize(shape)
     tensorfy = transforms.ToTensor()
     normalize = transforms.Normalize(mean, std)
@@ -220,8 +217,6 @@ def default_transform(train_data, val_data, test_data, shape = (224, 448),
     return train_data_T, val_data_T, test_data_T
 
 def apply_transforms(transform_list, train_data, val_data , test_data):
-    # TODO parameterize default shape, mean and std
-    # TODO default transform is not appended to "transform" composition. Consider doing this?
     default_shape = BEETLENET_AVERAGE_SHAPE
     default_mean = BEETLENET_MEAN
     default_std  = BEETLENET_STD
@@ -252,7 +247,6 @@ def dataset_to_dataloaders(dataset_config: DatasetConfig):
     """Create dataloaders from dataset images.\n
        Returns: training_dataset, validation_dataset, testing_dataset"""
     #FIXME currently assumes all given paths are split with '/'
-    #QUESTION: why?
     dataset = ImageFolder(dataset_config['image_folder_path'])
     training_ratio = dataset_config['training_data_ratio']
     validation_ratio = dataset_config['validation_data_ratio']
