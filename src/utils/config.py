@@ -21,7 +21,7 @@ BEETLENET_STD = np.array([0.28980458, 0.32252666, 0.3240354], dtype=np.float32)
 BEETLENET_AVERAGE_SHAPE = (224, 448)
 
 BEETLENET_PATH = './data/beetles/images/' 
-BEETLENET_CLASSES = len(next(os.walk(BEETLENET_PATH))[1])
+BEETLENET_NUM_CLASSES = len(next(os.walk(BEETLENET_PATH))[1])
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 DEFAULT_NUM_WORKERS = mp.cpu_count()//2
@@ -70,7 +70,7 @@ DREAM_CONFIG: DreamConfig = {
 
 BEETLE_DATASET: DatasetConfig = {
     'image_folder_path':    BEETLENET_PATH,
-    'num_classes':          BEETLENET_CLASSES,
+    'num_classes':          BEETLENET_NUM_CLASSES,
     'batch_size':           32,
     'num_workers':          DEFAULT_NUM_WORKERS,
     'rng_seed':             RNG_SEED,
