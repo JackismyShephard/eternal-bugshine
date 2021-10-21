@@ -70,7 +70,7 @@ BEETLE_DATASET: DatasetConfig = {
     'image_folder_path':    BEETLENET_PATH,
     'num_classes':          len(next(os.walk(BEETLENET_PATH))[1]),
     'batch_size':           32,
-    'num_workers':          (mp.cpu_count()//2),
+    'num_workers':          (0 if os.name == "nt" else mp.cpu_count()//2),
     'rng_seed':             RNG_SEED,
     'average_image_shape':  BEETLENET_AVERAGE_SHAPE,
     'mean':                 BEETLENET_MEAN,
