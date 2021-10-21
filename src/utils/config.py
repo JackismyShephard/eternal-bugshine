@@ -34,8 +34,7 @@ def mkdir_user():
     return DEFAULT_OUTPUT_PATH
 
 
-
-DEFAULT_MODEL_PATH = './models/'
+DEFAULT_MODEL_PATH = DEFAULT_OUTPUT_PATH + 'models/'
 DEFAULT_METRICS_PATH = DEFAULT_OUTPUT_PATH + 'figures/'
 
 DREAM_CONFIG: DreamConfig = {
