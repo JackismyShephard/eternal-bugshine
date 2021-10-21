@@ -20,7 +20,7 @@ BEETLENET_MEAN = np.array([0.8442649, 0.82529384, 0.82333773], dtype=np.float32)
 BEETLENET_STD = np.array([0.28980458, 0.32252666, 0.3240354], dtype=np.float32)
 BEETLENET_AVERAGE_SHAPE = (224, 448)
 
-BEETLENET_PATH = 'data/beetles/images/' 
+BEETLENET_PATH = './data/beetles/images/' 
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -67,8 +67,8 @@ DREAM_CONFIG: DreamConfig = {
 }
 
 BEETLE_DATASET: DatasetConfig = {
-    'image_folder_path':    './data/beetles/images/',  
-    'num_classes':          197, 
+    'image_folder_path':    BEETLENET_PATH,
+    'num_classes':          len(next(os.walk(BEETLENET_PATH))[1]),
     'batch_size':           32,
     'num_workers':          (mp.cpu_count()//2),
     'rng_seed':             RNG_SEED,
@@ -146,7 +146,7 @@ RESNET18_TEST: ModelConfig = {
 }
 
 DEFAULT_TRAINING: TrainingConfig = {
-    # QUESTION why are optim and criterion None?  secondly, why are scheduler and early_stopping None?
+    
     'optim':                None,
     'optim_args':           {'lr': 0.001, 'eps': 0.1},
     'criterion':            None,
