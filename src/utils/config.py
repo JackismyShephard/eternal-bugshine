@@ -21,17 +21,17 @@ BEETLENET_STD = np.array([0.28980458, 0.32252666, 0.3240354], dtype=np.float32)
 BEETLENET_AVERAGE_SHAPE = (224, 448)
 
 BEETLENET_PATH = './data/beetles/images/' 
+BEETLENET_CLASSES = len(next(os.walk(BEETLENET_PATH))[1])
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+DEFAULT_NUM_WORKERS = mp.cpu_count()//2
 
 
 DEFAULT_OUTPUT_PATH = './output/' + getpass.getuser() + '/'
 Path(DEFAULT_OUTPUT_PATH).mkdir(parents=True, exist_ok=True)
 Path(DEFAULT_OUTPUT_PATH + 'figures').mkdir(parents=True, exist_ok=True)
 Path(DEFAULT_OUTPUT_PATH + 'videos').mkdir(parents=True, exist_ok=True)
-def mkdir_user():
-    Path(DEFAULT_OUTPUT_PATH).mkdir(exist_ok=True, parents=True)
-    return DEFAULT_OUTPUT_PATH
+Path(DEFAULT_OUTPUT_PATH + 'models').mkdir(parents=True, exist_ok=True)
 
 
 DEFAULT_MODEL_PATH = DEFAULT_OUTPUT_PATH + 'models/'
@@ -70,9 +70,9 @@ DREAM_CONFIG: DreamConfig = {
 
 BEETLE_DATASET: DatasetConfig = {
     'image_folder_path':    BEETLENET_PATH,
-    'num_classes':          len(next(os.walk(BEETLENET_PATH))[1]),
+    'num_classes':          BEETLENET_CLASSES,
     'batch_size':           32,
-    'num_workers':          (0 if os.name == "nt" else mp.cpu_count()//2),
+    'num_workers':          DEFAULT_NUM_WORKERS,
     'rng_seed':             RNG_SEED,
     'average_image_shape':  BEETLENET_AVERAGE_SHAPE,
     'mean':                 BEETLENET_MEAN,
