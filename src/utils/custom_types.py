@@ -3,15 +3,12 @@ import torch
 from torchvision import transforms
 import numpy as np
 from numpy import typing as npt
-#IMPLEMENT custom types / type annotations for codebase
 
 IMG_EXT= t.Literal['.png', '.jpg', '.pdf', '.gif']
 
 class DreamConfig(t.TypedDict, total=False):
-    #QUESTION, why is total false here,when are we adding entries not in this list to a dream config?
     """Contains parameters and settings used in the dreamspace function"""
     model:              torch.nn.Module
-    # QUESTION t.Tuple
     out_info:           t.Dict[str, t.Union[t.Tuple[int, int], t.List[int], int, None]]
     mean:               npt.NDArray[np.float32]
     std:                npt.NDArray[np.float32]
@@ -88,7 +85,7 @@ class EarlyStoppingArgs(t.TypedDict, total=True):
     """Holds parameters used to determine early stopping during training"""
     min_epochs:                 int
     patience:                   int
-    min_delta:                  int 
+    min_delta:                  t.Union[int, float]
 
 class TrainingInformation(t.TypedDict, total=True):
     """Holds information about a training session"""
@@ -104,8 +101,8 @@ class TrainingConfig(t.TypedDict, total=True):
     optim_args:                 t.Dict[str, float]
     criterion:                  t.Optional[torch.nn.Module]
     scheduler:                  t.Optional[object]
-    early_stopping:             t.Optional[object] # QUESTION cant we just use our class name EarlyStopping here?
-    early_stopping_args:        t.Dict[str, int] # QUESTION again why not use EarlyStoppingArgs definition?
+    early_stopping:             t.Optional[object] 
+    early_stopping_args:        t.Dict[str, int]
     train_info:                 TrainingInformation
 
 class PlotConfig(t.TypedDict, total=True):
