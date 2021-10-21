@@ -270,8 +270,9 @@ def save(path, model_config: ModelConfig,
     new_config['model_info']['device'] = str(new_config['model_info']['device'])
     new_config['dataset_info']['mean'] = new_config['dataset_info']['mean'].tolist()
     new_config['dataset_info']['std'] = new_config['dataset_info']['std'].tolist()
-    new_config['dream_info']['mean'] = new_config['dream_info']['mean'].tolist()
-    new_config['dream_info']['std'] = new_config['dream_info']['std'].tolist()
+    if dream_config is not None:
+        new_config['dream_info']['mean'] = new_config['dream_info']['mean'].tolist()
+        new_config['dream_info']['std'] = new_config['dream_info']['std'].tolist()
 
     new_config['train_info']['optim'] = str(new_config['train_info']['optim'])
     new_config['train_info']['criterion'] = str(new_config['train_info']['criterion'])
