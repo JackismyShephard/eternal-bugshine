@@ -63,7 +63,8 @@ def image_folder_classes(data_folder : str):
     return len(next(os.walk(data_folder))[1])
 
 def list_classes(dataset_config: DatasetConfig, h_split : int = 6):
-    classes = os.listdir(dataset_config['image_folder_path'])
+    classes = list(os.listdir(dataset_config['image_folder_path']))
+    classes.sort()
     classes = np.array(classes).reshape(-1,1)
     class_nr = np.arange(classes.shape[0]).astype(str).reshape(-1,1)
 
@@ -88,18 +89,21 @@ def show_class_name(i : int, dataset_config: DatasetConfig):
     dir = os.walk(dataset_config['image_folder_path'])
     next(dir)
     dir = list(dir)
+    dir.sort()
     print('class {}: {}'.format(i, dir[i][0]))
 
 def show_class_name2(i : int, dataset_config: DatasetConfig):
     '''similar to get_class_example_image, but class name instead of full paths are printed'''
     dir = os.walk(dataset_config['image_folder_path'])
     _, classes, _ = next(dir)
+    classes.sort()
     print('class {}: {}'.format(i, classes[i]))
 
 def get_class_example_image(i : int, dataset_config: DatasetConfig):
     dir = os.walk(dataset_config['image_folder_path'])
     next(dir)
     dir = list(dir)
+    dir.sort()
     path_prefix = dir[i][0]
     print('Class path/name: {}'.format(path_prefix))
     dir = os.walk(dir[i][0])
@@ -113,8 +117,10 @@ def get_class_example_image2(i : int, dataset_config: DatasetConfig):
     '''similar to get_class_example_image, but class name instead of full paths are printed'''
     dir = os.walk(dataset_config['image_folder_path'])
     _, classes, _ = next(dir)
+    classes.sort()
     print('Class: {}'.format(classes[i]))
     dir = list(dir)
+    dir.sort()
     path_prefix = dir[i][0]
     dir = os.walk(dir[i][0])
     dir = list(dir)
