@@ -253,7 +253,8 @@ def dataset_to_dataloaders(dataset_config: DatasetConfig):
     batch_size = dataset_config['batch_size']
     num_workers = dataset_config['num_workers']
     train_dataset, val_dataset, test_dataset = apply_transforms(
-        transforms, train_data, val_data, test_data)
+        transforms, train_data, val_data, test_data, 
+        dataset_config['average_image_shape'],  dataset_config['mean'], dataset_config['std'])
     dataloaders = get_dataloaders(
         train_dataset, val_dataset, test_dataset, batch_size, num_workers)
     return dataloaders, dataset_sizes
