@@ -6,19 +6,17 @@ from numpy import typing as npt
 
 IMG_EXT= t.Literal['.png', '.jpg', '.pdf', '.gif']
 
-class DreamConfig(t.TypedDict, total=False):
+class DreamConfig(t.TypedDict):
     """Contains parameters and settings used in the dreamspace function"""
-    model:              torch.nn.Module
     out_info:           t.Dict[str, t.Union[t.Tuple[int, int], t.List[int], int, None]]
     mean:               npt.NDArray[np.float32]
     std:                npt.NDArray[np.float32]
     input_img_path:     t.Optional[str]
     target_shape:       t.Union[int, t.Tuple[int, int]]
 
-    noise:              t.Optional[t.Literal[   'uniform', 
-                                                'gaussian', 
-                                                'correlated_uniform', 
-                                                'correlated_gaussian']]
+    noise:              t.Optional[t.Literal['uniform', 'gaussian']]
+    correlation :       t.Optional[t.Literal['gaussian']]
+    correlation_std :   float
     ratio:              float
     levels:             int
     shift_size:         int

@@ -15,8 +15,6 @@ from .utils.config import extend_path, save
 
 
 
-
-
 def dream_process(model, dream_config, model_config, dataset_config, training_config, img = None):
     if img is not None:
         pass
@@ -26,7 +24,8 @@ def dream_process(model, dream_config, model_config, dataset_config, training_co
         img = img.astype(np.float32)  # convert from uint8 to float32
         img /= 255.0  # get to [0, 1] range
     else:
-        img = get_noise_image(dream_config['noise'], dream_config['target_shape'])
+        img = get_noise_image(dream_config['noise'], dream_config['target_shape'], 
+                                dream_config['correlation'], dream_config['correlation_std'])
     
     img = (img - dream_config['mean']) / dream_config['std']
     output_images = dreamspace(img, model, dream_config, model_config)

@@ -44,6 +44,8 @@ DREAM_CONFIG: DreamConfig = {
     'input_img_path': None,
     'target_shape': 600,
     'noise': None,
+    'correlation' : None,
+    'correlation_std' : 1,
     'ratio': 1.8,
     'levels': 4,
     'shift_size': 32,
@@ -187,10 +189,11 @@ DEFAULT_PLOTTING: PlotConfig = {
 }
 
 
-def get_new_config(param_dict, old_config: ETERNAL_CONFIG):
+def get_new_config(param_dict: t.Dict, old_config: t.Union[ETERNAL_CONFIG, t.Dict[str, t.Any]],
+                   new_keys: bool = False) -> t.Union[ETERNAL_CONFIG, t.Dict[str, t.Any]]:
 
-    if not(param_dict.keys() <= old_config.keys()):
-        raise TypeError('param_dict keys must be subset of old_config keys')
+    if not(new_keys) and not(param_dict.keys() <= old_config.keys()):
+        raise RuntimeError('param_dict keys must be subset of old_config keys')
 
     config = copy.deepcopy(old_config)
     for (name, param) in param_dict.items():
@@ -234,7 +237,7 @@ jens_params = {
 JENS_DATASET = get_new_config(jens_params, BEETLE_DATASET)
 
 
-def extend_path(path, overwrite=False):
+def extend_path(path : str, overwrite : bool =False) -> str:
     if overwrite:
         return path
     else:
@@ -245,9 +248,10 @@ def extend_path(path, overwrite=False):
         return (root + str(i) + ext)
 
 
-def save(path, model_config: ModelConfig, 
-                        dataset_config: DatasetConfig, training_config: TrainingConfig,
-                        model = None, optim = None, dataloaders = None, train_metrics = None, dream_config: t.Optional[DreamConfig] = None):
+def save(path :str, model_config: ModelConfig, dataset_config: DatasetConfig, 
+         training_config: TrainingConfig, model: t.Optional[torch.nn.Module] = None, 
+         optim=None, dataloaders=None, train_metrics: t.Optional[npt.NDArray] = None, 
+        dream_config: t.Optional[DreamConfig] = None) -> None:
     (root, _) = os.path.splitext(path)
     json_path = root + '_aux_dict.json'
 

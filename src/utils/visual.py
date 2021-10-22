@@ -1,20 +1,25 @@
-import collections
 import matplotlib.pyplot as plt
 import matplotlib.transforms as plt_transform
 import matplotlib.colors as mcolors
+
 import numpy as np
 import cv2 as cv
+from PIL import Image
+
 import torch
 from torchvision import transforms
-from PIL import Image
+
 from skimage import filters as skfilt
 from skimage.util import random_noise
+
+import typing as t
+from numpy import float32, typing as npt
 
 # used for image rendering
 import io
 from ipywidgets import widgets
 
-from .config import BEETLENET_MEAN, BEETLENET_STD, RNG_SEED, DEVICE
+from .config import BEETLENET_MEAN, BEETLENET_STD
 from .custom_types import PlotConfig
 
 
@@ -89,42 +94,53 @@ def plot_metrics(plot_config: PlotConfig, x, metrics, save_path=None):
     plt.show()
     plt.close()
 
-def reshape_image(img, shape):
+
+def reshape_image(img: npt.NDArray, shape: t.Union[int, t.Tuple[int, int]]):
     if isinstance(shape, int):
         current_height, current_width = img.shape[:2]
         new_height = int(current_height * (shape / current_width))
         new_img = cv.resize(img, (shape, new_height),
                             interpolation=cv.INTER_CUBIC)
 
-    elif isinstance(shape, collections.abc.Sequence):
+    elif isinstance(shape, tuple):
         new_img = cv.resize(
             img, (shape[1], shape[0]), interpolation=cv.INTER_CUBIC)
+    else:
+        raise TypeError('shape must be either an int or tuple')
             
     return new_img
 
 
 # QUESTION why are we using mode = 'reflect'?
-def get_noise_image(type, shape):
-    if type == 'uniform':
-        (h, w) = shape
-        img = np.random.uniform(size=(h, w, 3)).astype(np.float32)
-    elif type == 'correlated_uniform':
-        (h, w) = shape
-        img = np.random.uniform(size=(h, w, 3)).astype(np.float32)
-        img = skfilt.gaussian(img, mode='reflect', multichannel=True)
-        return img
-    elif type == 'correlated_gaussian':
-        (h, w) = shape
-        img = np.random.normal(size=(h, w, 3)).astype(np.float32)
-        img = skfilt.gaussian(img, mode='reflect', multichannel=True)
-        return img
+def get_noise_image(type: str, shape : t.Union[int, t.Tuple[int, int]], 
+                        correlation=None, sigma=1):
+    if isinstance(shape, int):
+        h,w = shape, shape
+    elif isinstance(shape, tuple):
+        h,w = shape
     else:
-        (h, w) = shape
+        raise TypeError('shape must be either an int or tuple')
+
+    if type == 'uniform':
+        img = np.random.uniform(size=(h, w, 3)).astype(np.float32)
+    elif type == 'gaussian':
         img = np.random.normal(size=(h, w, 3)).astype(np.float32)
+    else:
+        raise RuntimeError(
+            ('type must be either "uniform" or "gaussian", but "%s" was given' % (type)))
+    
+    if correlation is None:
+        pass
+    elif correlation == 'gaussian':
+            img = skfilt.gaussian(img, sigma, mode='reflect', multichannel=True)
+    else:
+        raise RuntimeError(
+            ('correlation must be either "None" or "gaussian", but "%s" was given' % (correlation)))
     return img
 
-def get_solid_color(color, shape):
-    _color = color
+
+def get_solid_color(color : t.Union[str,t.Tuple[float, float, float]], 
+                    shape: t.Union[int, t.Tuple[int, int]] ):
     if color == 'white':
         _color = [1., 1., 1.]
     elif color == 'black':
@@ -135,39 +151,56 @@ def get_solid_color(color, shape):
         _color = [0.,1.,0.]
     elif color == 'blue':
         _color = [0.,0.,1.]
-    (h, w) = shape
+    else:
+        _color = color
+    
+    if isinstance(shape, int):
+        (h,w) = (shape, shape)
+
+    elif isinstance(shape, tuple):
+        h,w = shape
+        
+    else:
+        raise TypeError('shape must be either an int or tuple')
+    
     img = np.zeros(shape=(h,w,3), dtype=np.float32)
+
     for i in range(3):
         img[:,:,i] = _color[i]
     return img
 
-def add_noise(type, img):
+def add_noise(type : str, img : npt.NDArray):
     return random_noise(img, type)  
 
-def preprocess_image(img, mean=BEETLENET_MEAN, std=BEETLENET_STD, 
-                        range = 255.0):
+
+def preprocess_image(img: npt.NDArray[t.Any], mean: npt.NDArray[float32] = BEETLENET_MEAN,
+                     std: npt.NDArray[float32]= BEETLENET_STD, range = 255.0):
     img = img.astype(np.float32)  # convert from uint8 to float32
     img /= range  # get to [0, 1] range
     img = (img - mean) / std
     return img
 
-def postprocess_image(img, mean=BEETLENET_MEAN, std=BEETLENET_STD):
+
+def postprocess_image(img: npt.NDArray[t.Any], mean: npt.NDArray[float32] = BEETLENET_MEAN, 
+                        std: npt.NDArray[float32] = BEETLENET_STD):
     img = img * std + mean
     img = np.clip(img, 0, 1)
     img = (img*255).astype(np.uint8)
     return img
 
-def image_to_tensor(img, device='gpu', requires_grad=False):
+
+def image_to_tensor(img: npt.NDArray[t.Any], device: str = 'gpu', requires_grad: bool = False):
     tensor = transforms.ToTensor()(img).to(device).unsqueeze(0)
     tensor.requires_grad = requires_grad
     return tensor
 
-def tensor_to_image(tensor):
+def tensor_to_image(tensor : torch.Tensor):
     tensor = tensor.to('cpu').detach().squeeze(0)
     img = tensor.numpy().transpose((1, 2, 0))
     return img
 
-def random_shift(tensor, h_shift, w_shift, undo=False, requires_grad = True):
+def random_shift(tensor : torch.Tensor, h_shift : int, w_shift : int, 
+                    undo : bool =False, requires_grad : bool = True):
     if undo:
         h_shift = -h_shift
         w_shift = -w_shift
@@ -176,7 +209,10 @@ def random_shift(tensor, h_shift, w_shift, undo=False, requires_grad = True):
         rolled.requires_grad = requires_grad
         return rolled
 
-def show_img(img,title=None, save_path=None, dpi=200, figsize=(7, 7), show_axis='on',close = False):
+
+def show_img(img, title: t.Optional[str] = None, save_path : t.Optional[str]=None, 
+                dpi : t.Union[float]  =200, figsize : t.Tuple[float, float]=(7, 7), 
+                show_axis : str ='on', close : bool =False):
     plt.figure(figsize=figsize)
     plt.imshow(img)
     plt.axis(show_axis)
@@ -192,7 +228,8 @@ def show_img(img,title=None, save_path=None, dpi=200, figsize=(7, 7), show_axis=
 def save_img(img, path):
     cv.imwrite(path, img[:, :, ::-1])
 
-def make_video(images, shape, path):
+
+def make_video(images: t.List[npt.NDArray], shape : t.Union[int, t.Tuple[int, int]], path : str):
     imgs = [Image.fromarray(reshape_image(img, shape)) for img in images]
     imgs[0].save(path, save_all=True, append_images=imgs[1:], loop=0)
 
