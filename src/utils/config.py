@@ -186,10 +186,12 @@ DEFAULT_PLOTTING: PlotConfig = {
     'show_rolling_avg':     True
 }
 
-def get_new_config(param_dict, old_config: t.Union[DreamConfig, DatasetConfig, None] = None):
-    
-    if old_config is None:
-        raise TypeError('Config must not be None. See src/utils/config.py for default configs')
+
+def get_new_config(param_dict, old_config: ETERNAL_CONFIG):
+
+    if not(param_dict.keys() <= old_config.keys()):
+        raise TypeError('param_dict keys must be subset of old_config keys')
+
     config = copy.deepcopy(old_config)
     for (name, param) in param_dict.items():
         config[name] = param
