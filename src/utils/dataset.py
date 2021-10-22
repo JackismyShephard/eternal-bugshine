@@ -22,7 +22,7 @@ from .custom_types import *
 
 def download_dataset(url : str ='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip',
                      zip_name : str ='beetles.zip', folder_name : str ='beetles',
-                     force_download : bool =False, root : str='./data/', min_examples : int = 10):
+                     force_download : bool =False, root : str='./data/', min_examples : int = 10) -> str:
     ssl._create_default_https_context = ssl._create_unverified_context
     archive = os.path.join(root, zip_name)
     data_folder = os.path.join(root, folder_name)
@@ -41,7 +41,7 @@ def download_dataset(url : str ='https://sid.erda.dk/share_redirect/heaAFNnmaG/d
 
 def image_folder_dims(data_folder : str, ext :IMG_EXT = '.jpg', 
                         load_path: t.Optional[str] = None, 
-                        save_path: t.Optional[str] = None):
+                        save_path: t.Optional[str] = None) -> npt.NDArray:
     if load_path is not None:
         dims = np.load(load_path)
 
@@ -63,11 +63,11 @@ def image_folder_dims(data_folder : str, ext :IMG_EXT = '.jpg',
         
     return dims
 
-def image_folder_classes(data_folder : str):
+def image_folder_classes(data_folder : str) -> int:
     '''Get number of different classes in image folder.'''
     return len(next(os.walk(data_folder))[1])
 
-def list_classes(dataset_config: DatasetConfig, h_split : int = 6):
+def list_classes(dataset_config: DatasetConfig, h_split : int = 6) -> None:
     classes = list(os.listdir(dataset_config['image_folder_path']))
     classes.sort()
     classes = np.array(classes).reshape(-1,1)
@@ -90,21 +90,21 @@ def list_classes(dataset_config: DatasetConfig, h_split : int = 6):
     with pd.option_context('display.max_rows',None):
         display(pdf.style.hide_index())
 
-def show_class_name(i : int, dataset_config: DatasetConfig): 
+def show_class_name(i : int, dataset_config: DatasetConfig) -> None: 
     dir = os.walk(dataset_config['image_folder_path'])
     next(dir)
     dir = list(dir)
     dir.sort()
     print('class {}: {}'.format(i, dir[i][0]))
 
-def show_class_name2(i : int, dataset_config: DatasetConfig):
+def show_class_name2(i : int, dataset_config: DatasetConfig) -> None:
     '''similar to get_class_example_image, but class name instead of full paths are printed'''
     dir = os.walk(dataset_config['image_folder_path'])
     _, classes, _ = next(dir)
     classes.sort()
     print('class {}: {}'.format(i, classes[i]))
 
-def get_class_example_image(i : int, dataset_config: DatasetConfig):
+def get_class_example_image(i : int, dataset_config: DatasetConfig) -> npt.NDArray:
     dir = os.walk(dataset_config['image_folder_path'])
     next(dir)
     dir = list(dir)
@@ -118,7 +118,7 @@ def get_class_example_image(i : int, dataset_config: DatasetConfig):
     return cv.imread(path)[:, :, ::-1]
 
 
-def get_class_example_image2(i : int, dataset_config: DatasetConfig):
+def get_class_example_image2(i : int, dataset_config: DatasetConfig) -> npt.NDArray:
     '''similar to get_class_example_image, but class name instead of full paths are printed'''
     dir = os.walk(dataset_config['image_folder_path'])
     _, classes, _ = next(dir)
@@ -134,7 +134,8 @@ def get_class_example_image2(i : int, dataset_config: DatasetConfig):
     return cv.imread(path)[:, :, ::-1]
 
 
-def split_dataset_stratified(dataset, train_ratio: t.Union[int, float] = 0.8, val_ratio: t.Union[int, float] = 0.5):
+def split_dataset_stratified(dataset : ImageFolder , train_ratio: t.Union[int, float] = 0.8, 
+                                val_ratio: t.Union[int, float] = 0.5) -> t.Tuple[Dataset, Dataset, Dataset, t.Dict[str, int]]:
     '''Performs a stratified split of a dataset into training, validation and test sets.
        train_ratio indicates the relative ratio of training examples with respect to the original dataset.
        val_ratio indicates the relative ratio of validation examples with respect to the dataset minus the training
@@ -168,7 +169,7 @@ class TransformsDataset(Dataset):
         return len(self.subset)
 
 
-def dataset_stats(data_set, num_workers:int=0, batch_size:int=32):
+def dataset_stats(data_set, num_workers:int=0, batch_size:int=32) -> t.Tuple[npt.NDArray, npt.NDArray]:
 
     loader = DataLoader(
         data_set,
@@ -196,7 +197,8 @@ def dataset_stats(data_set, num_workers:int=0, batch_size:int=32):
 
 
 def standardize_stats(train_data, shape : t.Union[int, t.Sequence[int]]=(224, 448), num_workers: int=0,
-                      batch_size: int = 32, load_path:  t.Optional[str] = None, save_path:  t.Optional[str] = None):
+                      batch_size: int = 32, load_path:  t.Optional[str] = None, 
+                      save_path:  t.Optional[str] = None) -> t.Tuple[npt.NDArray, npt.NDArray]:
 
     if load_path is not None:
         mean, std = np.load(load_path)
@@ -217,9 +219,10 @@ def standardize_stats(train_data, shape : t.Union[int, t.Sequence[int]]=(224, 44
 
 
 
-def apply_transforms(transform_list, train_data, val_data , test_data, 
+def apply_transforms(transform_list, train_data: Dataset, val_data : Dataset , test_data : Dataset, 
                      default_shape: t.Union[int, t.Sequence[int]] =BEETLENET_AVERAGE_SHAPE,
-                     default_mean: npt.NDArray[np.float32] = BEETLENET_MEAN, default_std: npt.NDArray[np.float32] = BEETLENET_STD):
+                     default_mean: npt.NDArray[np.float32] = BEETLENET_MEAN, 
+                     default_std: npt.NDArray[np.float32] = BEETLENET_STD) -> t.Tuple[Dataset, Dataset, Dataset]:
     
     default_transforms = Compose([Resize(default_shape), ToTensor(), Normalize(default_mean, default_std)
     ])
@@ -231,7 +234,8 @@ def apply_transforms(transform_list, train_data, val_data , test_data,
 
     return train_data_T, val_data_T, test_data_T
 
-def get_dataloaders(train_data, val_data, test_data, batch_size : int = 32, num_workers : int = 0):
+def get_dataloaders(train_data : Dataset, val_data : Dataset, test_data : Dataset, 
+                    batch_size : int = 32, num_workers : int = 0) -> t.Dict[str, DataLoader]:
     train_loader = DataLoader(train_data, batch_size=batch_size,
                                             num_workers=num_workers, shuffle=True)
     val_loader = DataLoader(val_data, batch_size=batch_size,
@@ -240,7 +244,7 @@ def get_dataloaders(train_data, val_data, test_data, batch_size : int = 32, num_
                                             num_workers=num_workers)
     return {'train': train_loader, 'val': val_loader, 'test': test_loader}
 
-def dataset_to_dataloaders(dataset_config: DatasetConfig):
+def dataset_to_dataloaders(dataset_config: DatasetConfig) -> t.Tuple[t.Dict[str, DataLoader], t.Dict[str, int]]:
     """Create dataloaders from dataset images.\n
        Returns: training_dataset, validation_dataset, testing_dataset"""
     #FIXME currently assumes all given paths are split with '/'
