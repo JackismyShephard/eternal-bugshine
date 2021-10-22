@@ -140,4 +140,4 @@ class PlotConfig(t.TypedDict):
 
     show_rolling_avg:           bool
 
-
+ETERNAL_CONFIG = t.Union[PlotConfig, TrainingConfig, DatasetConfig, DreamConfig]
