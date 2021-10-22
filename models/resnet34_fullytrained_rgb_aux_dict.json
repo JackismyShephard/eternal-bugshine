@@ -1,0 +1,63 @@
+{
+    "model_info": {
+        "model_name": "resnet34_fullytrained_rgb",
+        "model_architecture": "resnet34",
+        "pretrained": false,
+        "device": "cuda"
+    },
+    "dataset_info": {
+        "image_folder_path": "./data/beetles/images/",
+        "num_classes": 197,
+        "batch_size": 32,
+        "num_workers": 6,
+        "rng_seed": 16843009,
+        "average_image_shape": [
+            224,
+            448
+        ],
+        "mean": [
+            0.8442649245262146,
+            0.8252938389778137,
+            0.823337733745575
+        ],
+        "std": [
+            0.2898045778274536,
+            0.3225266635417938,
+            0.3240354061126709
+        ],
+        "training_data_ratio": 0.8,
+        "validation_data_ratio": 0.5,
+        "data_augmentations": [
+            "{\"RandomVerticalFlip\":[0.5]}",
+            "{\"RandomRotation\":[[-3,3],255]}",
+            "{\"NotStupidRandomResizedCrop\":[0.95,1]}",
+            "{\"RandomizeBackgroundRGBNoise\":[0.95]}",
+            "{\"Resize\":[[224,448]]}",
+            "{\"ToTensor\":[]}",
+            "{\"Normalize\":[[0.8442649, 0.82529384, 0.82333773], [0.28980458, 0.32252666, 0.3240354]]}"
+        ]
+    },
+    "train_info": {
+        "optim": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.9, 0.999)\n    eps: 0.1\n    initial_lr: 0.001\n    lr: 0.00035787515808676363\n    weight_decay: 0\n)",
+        "optim_args": {
+            "lr": 0.001,
+            "eps": 0.1
+        },
+        "criterion": "CrossEntropyLoss()",
+        "scheduler": "<torch.optim.lr_scheduler.ExponentialLR object at 0x7f5a60ace0d0>",
+        "early_stopping": "EarlyStopping(patience = 5, min_delta = 0, min_epochs = 200)",
+        "early_stopping_args": {
+            "min_epochs": 200,
+            "patience": 5,
+            "min_delta": 0
+        },
+        "train_info": {
+            "num_epochs": 400,
+            "trained_epochs": 90,
+            "lr_decay": 0.995,
+            "stopped_early": true,
+            "test_acc": 0
+        }
+    },
+    "dream_info": null
+}
