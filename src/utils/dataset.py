@@ -1,20 +1,25 @@
 import os
 import glob
 import ssl
+import typing as t
+
 import numpy as np
 from PIL import Image
-import torch
 import cv2 as cv
 import pandas as pd
+
+from sklearn.model_selection import train_test_split
+
 from torchvision.datasets.utils import download_url, extract_archive
 from torch.utils.data.dataset import Dataset
-from torch.utils.data import Subset
-from torchvision import transforms
+from torch.utils.data import Subset, DataLoader
+from torchvision.transforms import Resize, Compose, Normalize, ToTensor
 from torchvision.datasets import ImageFolder
-from sklearn.model_selection import train_test_split
+
 from .config import BEETLENET_STD, BEETLENET_MEAN, BEETLENET_AVERAGE_SHAPE, RNG_SEED
 from .custom_types import *
-import typing as t
+
+
 def download_dataset(url : str ='https://sid.erda.dk/share_redirect/heaAFNnmaG/data.zip',
                      zip_name : str ='beetles.zip', folder_name : str ='beetles',
                      force_download : bool =False, root : str='./data/', min_examples : int = 10):
@@ -165,7 +170,7 @@ class TransformsDataset(Dataset):
 
 def dataset_stats(data_set, num_workers:int=0, batch_size:int=32):
 
-    loader = torch.utils.data.DataLoader(
+    loader = DataLoader(
         data_set,
         batch_size=batch_size,
         num_workers=num_workers,
@@ -197,9 +202,9 @@ def standardize_stats(train_data, shape : t.Union[int, t.Sequence[int]]=(224, 44
         mean, std = np.load(load_path)
 
     else:
-        resize = transforms.Resize(shape)
-        tensorfy = transforms.ToTensor()
-        transforms_pre_norm = transforms.Compose([resize, tensorfy])
+        resize = Resize(shape)
+        tensorfy = ToTensor()
+        transforms_pre_norm = Compose([resize, tensorfy])
         train_data_pre_norm = TransformsDataset(
             train_data, transforms_pre_norm)
         mean, std = dataset_stats(train_data_pre_norm, num_workers, batch_size)
@@ -216,13 +221,9 @@ def apply_transforms(transform_list, train_data, val_data , test_data,
                      default_shape: t.Union[int, t.Sequence[int]] =BEETLENET_AVERAGE_SHAPE,
                      default_mean: npt.NDArray[np.float32] = BEETLENET_MEAN, default_std: npt.NDArray[np.float32] = BEETLENET_STD):
     
-    # TODO we should really save the whole transformation sequence into a dict for later json file, i.e. include the default transformations
-    default_transforms = transforms.Compose([
-        transforms.Resize(default_shape),
-        transforms.ToTensor(),
-        transforms.Normalize(default_mean, default_std)
+    default_transforms = Compose([Resize(default_shape), ToTensor(), Normalize(default_mean, default_std)
     ])
-    transform = transforms.Compose(transform_list)
+    transform = Compose(transform_list)
 
     train_data_T = TransformsDataset(train_data, transform)
     val_data_T = TransformsDataset(val_data, default_transforms)
@@ -231,11 +232,11 @@ def apply_transforms(transform_list, train_data, val_data , test_data,
     return train_data_T, val_data_T, test_data_T
 
 def get_dataloaders(train_data, val_data, test_data, batch_size : int = 32, num_workers : int = 0):
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
+    train_loader = DataLoader(train_data, batch_size=batch_size,
                                             num_workers=num_workers, shuffle=True)
-    val_loader = torch.utils.data.DataLoader(val_data, batch_size=batch_size,
+    val_loader = DataLoader(val_data, batch_size=batch_size,
                                             num_workers=num_workers)
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size,
+    test_loader = DataLoader(test_data, batch_size=batch_size,
                                             num_workers=num_workers)
     return {'train': train_loader, 'val': val_loader, 'test': test_loader}
 
