@@ -41,7 +41,7 @@ class DreamConfig(t.TypedDict, total=False):
     video_path:         t.Optional[str]
     video_overwrite:    bool
 
-class ModelConfig(t.TypedDict, total=True):
+class ModelConfig(t.TypedDict):
     """Holds information used when loading a model"""
     model_name:         str
     """Either the name of a stored model or None if using purely pretrained model"""
@@ -52,7 +52,7 @@ class ModelConfig(t.TypedDict, total=True):
     device:             torch.device
     """Decide if model runs on cpu or gpu"""
 
-class DatasetConfig(t.TypedDict, total=True):
+class DatasetConfig(t.TypedDict):
     """Describes a dataset and the parameters of its dataloaders"""
     image_folder_path:          str
     """Path to the dataset images"""
@@ -77,35 +77,35 @@ class DatasetConfig(t.TypedDict, total=True):
     validation_data_ratio:      float
     """Specifies the percentwise size of the validation set relative to the dataset"""
 
-class OptimArgs(t.TypedDict, total=True):
+class OptimArgs(t.TypedDict):
     """Holds parameters used with the torch.optim.Adam optimizer"""
     lr:                         float
     eps:                        float
-class EarlyStoppingArgs(t.TypedDict, total=True):
+class EarlyStoppingArgs(t.TypedDict):
     """Holds parameters used to determine early stopping during training"""
     min_epochs:                 int
     patience:                   int
     min_delta:                  t.Union[int, float]
 
-class TrainingInformation(t.TypedDict, total=True):
+class TrainingInformation(t.TypedDict):
     """Holds information about a training session"""
     num_epochs:                 int
-    trained_epochs:             int #old name was train_iters
+    trained_epochs:             int
     lr_decay:                   float
     stopped_early:              bool
     test_acc:                   float
 
-class TrainingConfig(t.TypedDict, total=True):
+class TrainingConfig(t.TypedDict):
     """Describes parameters used for training, besides model and dataset"""
     optim:                      t.Optional[torch.optim.Optimizer]
-    optim_args:                 t.Dict[str, float]
+    optim_args:                 OptimArgs
     criterion:                  t.Optional[torch.nn.Module]
     scheduler:                  t.Optional[object]
     early_stopping:             t.Optional[object] 
-    early_stopping_args:        t.Dict[str, int]
+    early_stopping_args:        EarlyStoppingArgs
     train_info:                 TrainingInformation
 
-class PlotConfig(t.TypedDict, total=True):
+class PlotConfig(t.TypedDict):
     """Holds parameters used to plot during training"""
     size_h:                     int
     size_w:                     int
