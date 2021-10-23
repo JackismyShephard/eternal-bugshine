@@ -1,6 +1,6 @@
 import typing as t
 import torch
-from torchvision import transforms
+from .transforms import ToTensor
 import numpy as np
 from numpy import typing as npt
 
@@ -63,7 +63,7 @@ class DatasetConfig(t.TypedDict):
     """Standard deviation of the dataset images"""
     average_image_shape:        t.Tuple[int, int]
     """The average image dimensions of the dataset"""
-    data_augmentations:         t.List[t.Union[torch.nn.Module, object]]
+    data_augmentations:         t.List[t.Union[torch.nn.Module, ToTensor]]
     """List of data augmentations that should be applied to the training set"""
     batch_size:                 int
     """Batch size for the dataloaders"""

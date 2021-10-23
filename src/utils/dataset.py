@@ -14,7 +14,9 @@ from torchvision.datasets.utils import download_url, extract_archive
 from torch.utils.data.dataset import Dataset
 from torch.utils.data import Subset, DataLoader
 from torchvision.transforms import Resize, Compose, Normalize, ToTensor
+from numbers import Number
 from torchvision.datasets import ImageFolder
+from PIL import Image
 
 from .config import BEETLENET_STD, BEETLENET_MEAN, BEETLENET_AVERAGE_SHAPE, RNG_SEED
 from .custom_types import *
@@ -41,7 +43,7 @@ def download_dataset(url : str ='https://sid.erda.dk/share_redirect/heaAFNnmaG/d
 
 def image_folder_dims(data_folder : str, ext :IMG_EXT = '.jpg', 
                         load_path: t.Optional[str] = None, 
-                        save_path: t.Optional[str] = None) -> npt.NDArray:
+                        save_path: t.Optional[str] = None) -> npt.NDArray[np.float64]:
     if load_path is not None:
         dims = np.load(load_path)
 
@@ -104,7 +106,7 @@ def show_class_name2(i : int, dataset_config: DatasetConfig) -> None:
     classes.sort()
     print('class {}: {}'.format(i, classes[i]))
 
-def get_class_example_image(i : int, dataset_config: DatasetConfig) -> npt.NDArray:
+def get_class_example_image(i : int, dataset_config: DatasetConfig) -> npt.NDArray[np.uint8]:
     dir = os.walk(dataset_config['image_folder_path'])
     next(dir)
     dir = list(dir)
@@ -118,7 +120,7 @@ def get_class_example_image(i : int, dataset_config: DatasetConfig) -> npt.NDArr
     return cv.imread(path)[:, :, ::-1]
 
 
-def get_class_example_image2(i : int, dataset_config: DatasetConfig) -> npt.NDArray:
+def get_class_example_image2(i : int, dataset_config: DatasetConfig) -> npt.NDArray[np.uint8]:
     '''similar to get_class_example_image, but class name instead of full paths are printed'''
     dir = os.walk(dataset_config['image_folder_path'])
     _, classes, _ = next(dir)
@@ -135,8 +137,8 @@ def get_class_example_image2(i : int, dataset_config: DatasetConfig) -> npt.NDAr
 
 
 def split_dataset_stratified(dataset : ImageFolder , train_ratio: t.Union[int, float] = 0.8, 
-                                val_ratio: t.Union[int, float] = 0.5) -> t.Tuple[Dataset, Dataset, Dataset, t.Dict[str, int]]:
-    '''Performs a stratified split of a dataset into training, validation and test sets.
+                            val_ratio: t.Union[int, float] = 0.5) -> t.Tuple[Subset, Subset, Subset, t.Dict[str, int]]:
+    '''Performs a stratified split of an Image Folder dataset into training, validation and test sets.
        train_ratio indicates the relative ratio of training examples with respect to the original dataset.
        val_ratio indicates the relative ratio of validation examples with respect to the dataset minus the training
        examples
@@ -155,22 +157,45 @@ def split_dataset_stratified(dataset : ImageFolder , train_ratio: t.Union[int, f
 
 
 class TransformsDataset(Dataset):
-    def __init__(self, subset, transform=None):
+    '''Transforms a Dataset subset by a given transformation'''
+    def __init__(self, subset: Subset, transform: t.Optional[t.Union[torch.nn.Module, ToTensor, Compose]] = None):
         self.subset = subset
         self.transform = transform
 
-    def __getitem__(self, index):
+    def __getitem__(self, index : int) -> t.Any:
         x, y = self.subset[index]
         if self.transform:
             x = self.transform(x)
         return x, y
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.subset)
 
 
-def dataset_stats(data_set, num_workers:int=0, batch_size:int=32) -> t.Tuple[npt.NDArray, npt.NDArray]:
+def standardize_stats(train_data : Subset, shape : t.Union[int, t.Sequence[int]]=(224, 448), num_workers: int=0,
+                      batch_size: int = 32, load_path:  t.Optional[str] = None, 
+                      save_path:  t.Optional[str] = None) -> t.Tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
+    '''Retrieves the mean and std of an dataset subset after resizing to given dimensions and tensorfying'''
+    if load_path is not None:
+        mean, std = np.load(load_path)
 
+    else:
+        resize = Resize(shape)
+        tensorfy = ToTensor()
+        transforms_pre_norm = Compose([resize, tensorfy])
+        train_data_pre_norm = TransformsDataset(
+            train_data, transforms_pre_norm)
+        mean, std = dataset_stats(train_data_pre_norm, num_workers, batch_size)
+
+    if save_path is not None:
+        np.save(save_path, np.array((mean, std)))
+
+    return mean, std
+
+
+def dataset_stats(data_set: Dataset[torch.Tensor], num_workers: int = 0, 
+                    batch_size: int = 32) -> t.Tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
+    '''Computes the mean and std of a dataset of tensors.'''
     loader = DataLoader(
         data_set,
         batch_size=batch_size,
@@ -196,33 +221,12 @@ def dataset_stats(data_set, num_workers:int=0, batch_size:int=32) -> t.Tuple[npt
     return mean, std
 
 
-def standardize_stats(train_data, shape : t.Union[int, t.Sequence[int]]=(224, 448), num_workers: int=0,
-                      batch_size: int = 32, load_path:  t.Optional[str] = None, 
-                      save_path:  t.Optional[str] = None) -> t.Tuple[npt.NDArray, npt.NDArray]:
 
-    if load_path is not None:
-        mean, std = np.load(load_path)
-
-    else:
-        resize = Resize(shape)
-        tensorfy = ToTensor()
-        transforms_pre_norm = Compose([resize, tensorfy])
-        train_data_pre_norm = TransformsDataset(
-            train_data, transforms_pre_norm)
-        mean, std = dataset_stats(train_data_pre_norm, num_workers, batch_size)
-
-    if save_path is not None:
-        np.save(save_path, np.array((mean, std)))
-
-    return mean, std
-
-
-
-
-def apply_transforms(transform_list, train_data: Dataset, val_data : Dataset , test_data : Dataset, 
-                     default_shape: t.Union[int, t.Sequence[int]] =BEETLENET_AVERAGE_SHAPE,
-                     default_mean: npt.NDArray[np.float32] = BEETLENET_MEAN, 
-                     default_std: npt.NDArray[np.float32] = BEETLENET_STD) -> t.Tuple[Dataset, Dataset, Dataset]:
+def apply_transforms(transform_list : t.List[t.Union[ToTensor, torch.nn.Module]], 
+                        train_data: Subset, val_data : Subset , test_data :  Subset, 
+                        default_shape: t.Union[int, t.Sequence[int]] =BEETLENET_AVERAGE_SHAPE,
+                        default_mean: npt.NDArray[np.float32] = BEETLENET_MEAN, 
+                        default_std: npt.NDArray[np.float32] = BEETLENET_STD) -> t.Tuple[Dataset[torch.Tensor], Dataset[torch.Tensor], Dataset[torch.Tensor]]:
     
     default_transforms = Compose([Resize(default_shape), ToTensor(), Normalize(default_mean, default_std)
     ])
