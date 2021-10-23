@@ -17,7 +17,7 @@ from .utils.custom_types import *
 
 def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_config : ModelConfig, 
                     dataset_config : DatasetConfig, training_config : TrainingConfig, 
-                    img : t.Optional[npt.NDArray[np.float32]] = None) -> t.List[npt.NDArray]:
+                    img : t.Optional[npt.NDArray[np.float32]] = None) -> t.List[npt.NDArray[t.Any]]:
     if img is not None:
         input_img = img
     elif dream_config['input_img_path'] is not None:
@@ -29,12 +29,12 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
         input_img = get_noise_image(dream_config['noise'], dream_config['target_shape'], 
                                 dream_config['correlation'], dream_config['correlation_std'], 
                                 dream_config['noise_scale'])
+        input_img = input_img.astype(np.float32)
+        input_img = (input_img - input_img.min())/(input_img.max() - input_img.min() )
     else:
         raise RuntimeError('img, input_img_path and noise are all None')
     input_img = (input_img - dream_config['mean']) / dream_config['std']
     output_images = dreamspace(input_img, model, dream_config, model_config['device'])
-
-
 
     if dream_config['output_img_path'] is not None:
         path = extend_path(dream_config['output_img_path'], dream_config['img_overwrite'])
@@ -50,12 +50,16 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
 
 
 #TODO figure out if rescaling leaves artifacts in output image
-def scale_level(img: npt.NDArray[np.float32], start_size: t.Tuple, level: int,
-                ratio: float = 1.8, levels: int = 4) -> npt.NDArray[np.float32]:
+def scale_level(img: npt.NDArray[t.Any], start_size: t.Tuple, level: int,
+                ratio: float = 1.8, levels: int = 4) -> npt.NDArray[t.Any]:
     exponent = level - levels + 1
     h, w = np.round(np.float32(np.array(start_size)) *
                     (ratio ** exponent)).astype(np.int32)
-    scaled_img = cv.resize(img, (w, h))
+    if (h < img.shape[0]):
+        interpolation_mode = cv.INTER_AREA
+    else:
+        interpolation_mode = cv.INTER_CUBIC
+    scaled_img = cv.resize(img, (w, h), interpolation = interpolation_mode)
     return scaled_img
 
 
