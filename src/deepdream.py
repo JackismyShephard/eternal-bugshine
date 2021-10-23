@@ -27,7 +27,8 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
         input_img /= np.array(255.0)  # get to [0, 1] range
     elif dream_config['noise'] is not None:
         input_img = get_noise_image(dream_config['noise'], dream_config['target_shape'], 
-                                dream_config['correlation'], dream_config['correlation_std'])
+                                dream_config['correlation'], dream_config['correlation_std'], 
+                                dream_config['noise_scale'])
     else:
         raise RuntimeError('img, input_img_path and noise are all None')
     input_img = (input_img - dream_config['mean']) / dream_config['std']
