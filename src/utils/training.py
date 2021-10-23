@@ -12,7 +12,6 @@ from .custom_types import ModelConfig, TrainingConfig, DatasetConfig, PlotConfig
 
 from .visual import plot_metrics
 from .config import RNG_SEED, DEFAULT_MODEL_PATH, DEFAULT_METRICS_PATH, save, DEVICE
-from ..models import save_model
 
 #IMPLEMENT smarter early stopping that calculates graph trend based on last N values
 class EarlyStopping():
