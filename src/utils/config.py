@@ -43,9 +43,10 @@ DREAM_CONFIG: DreamConfig = {
     'std': BEETLENET_STD,
     'input_img_path': None,
     'target_shape': 600,
-    'noise': None,
+    'noise': 'gaussian',
+     'noise_scale' : 1.0,
     'correlation' : None,
-    'correlation_std' : 1,
+    'correlation_std' : 1.0,
     'ratio': 1.8,
     'levels': 4,
     'shift_size': 32,
@@ -189,8 +190,8 @@ DEFAULT_PLOTTING: PlotConfig = {
 }
 
 
-def get_new_config(param_dict: t.Dict, old_config: t.Union[ETERNAL_CONFIG, t.Dict[str, t.Any]],
-                   new_keys: bool = False) -> t.Union[ETERNAL_CONFIG, t.Dict[str, t.Any]]:
+def get_new_config(param_dict: t.Dict, old_config: t.Union[ETERNAL_CONFIG, t.Dict],
+                   new_keys: bool = False) -> t.Union[ETERNAL_CONFIG, t.Dict]:
 
     if not(new_keys) and not(param_dict.keys() <= old_config.keys()):
         raise RuntimeError('param_dict keys must be subset of old_config keys')
