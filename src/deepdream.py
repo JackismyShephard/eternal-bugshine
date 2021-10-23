@@ -25,10 +25,11 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
         input_img = reshape_image(input_img, dream_config['target_shape'])
         input_img = input_img.astype(np.float32)  # convert from uint8 to float32
         input_img /= np.array(255.0)  # get to [0, 1] range
-    else:
+    elif dream_config['noise'] is not None:
         input_img = get_noise_image(dream_config['noise'], dream_config['target_shape'], 
                                 dream_config['correlation'], dream_config['correlation_std'])
-    
+    else:
+        raise RuntimeError('img, input_img_path and noise are all None')
     input_img = (input_img - dream_config['mean']) / dream_config['std']
     output_images = dreamspace(input_img, model, dream_config, model_config)
 
