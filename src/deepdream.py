@@ -17,7 +17,7 @@ from .utils.custom_types import *
 
 def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_config : ModelConfig, 
                     dataset_config : DatasetConfig, training_config : TrainingConfig, 
-                    img : t.Optional[npt.NDArray[np.float32]] = None) -> t.List[npt.NDArray[t.Any]]:
+                    img : t.Optional[npt.NDArray[np.float32]] = None) -> t.List[npt.NDArray[np.uint8]]:
     if img is not None:
         input_img = img
     elif dream_config['input_img_path'] is not None:
@@ -64,7 +64,7 @@ def scale_level(img: npt.NDArray[t.Any], start_size: t.Tuple, level: int,
 
 
 def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module, 
-                    dream_config : DreamConfig, device : torch.device) -> t.List[npt.NDArray]:
+                    dream_config : DreamConfig, device : torch.device) -> t.List[npt.NDArray[np.uint8]]:
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
     
