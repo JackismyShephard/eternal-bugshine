@@ -32,10 +32,10 @@ Path(DEFAULT_OUTPUT_PATH).mkdir(parents=True, exist_ok=True)
 Path(DEFAULT_OUTPUT_PATH + 'figures').mkdir(parents=True, exist_ok=True)
 Path(DEFAULT_OUTPUT_PATH + 'videos').mkdir(parents=True, exist_ok=True)
 Path(DEFAULT_OUTPUT_PATH + 'models').mkdir(parents=True, exist_ok=True)
+Path('models').mkdir(parents=True, exist_ok=True)
 
-
-DEFAULT_MODEL_PATH = DEFAULT_OUTPUT_PATH + 'models/'
-DEFAULT_METRICS_PATH = DEFAULT_OUTPUT_PATH + 'figures/'
+DEFAULT_MODEL_PATH = 'models/'
+DEFAULT_METRICS_PATH = 'models/'
 
 DREAM_CONFIG: DreamConfig = {
     'out_info': {'fc': None}, #None = whole layer, otherwise specify index as tuple (y,x). 
