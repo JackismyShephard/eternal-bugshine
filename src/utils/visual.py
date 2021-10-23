@@ -95,52 +95,41 @@ def plot_metrics(plot_config: PlotConfig, x, metrics, save_path=None):
     plt.close()
 
 
-def reshape_image(img: npt.NDArray, shape: t.Union[int, t.Tuple[int, int]]):
+def reshape_image(img: npt.NDArray, shape: t.Union[int, t.Tuple[int, int]]) -> npt.NDArray:
     if isinstance(shape, int):
         current_height, current_width = img.shape[:2]
         new_height = int(current_height * (shape / current_width))
         new_img = cv.resize(img, (shape, new_height),
                             interpolation=cv.INTER_CUBIC)
 
-    elif isinstance(shape, tuple):
-        new_img = cv.resize(
-            img, (shape[1], shape[0]), interpolation=cv.INTER_CUBIC)
     else:
-        raise TypeError('shape must be either an int or tuple')
+        new_img = cv.resize(img, (shape[1], shape[0]), interpolation=cv.INTER_CUBIC)
             
     return new_img
 
 
 # QUESTION why are we using mode = 'reflect'?
-def get_noise_image(type: str, shape : t.Union[int, t.Tuple[int, int]], 
-                        correlation=None, sigma=1):
+def get_noise_image(type: t.Literal['uniform', 'gaussian'], 
+                    shape: t.Union[int, t.Tuple[int, int]],
+                        correlation: t.Optional[str] = None, sigma=1.0, scale = 1.0) -> npt.NDArray[t.Any]:
     if isinstance(shape, int):
         h,w = shape, shape
-    elif isinstance(shape, tuple):
-        h,w = shape
     else:
-        raise TypeError('shape must be either an int or tuple')
+        h,w = shape
 
     if type == 'uniform':
         img = np.random.uniform(size=(h, w, 3)).astype(np.float32)
-    elif type == 'gaussian':
-        img = np.random.normal(size=(h, w, 3)).astype(np.float32)
     else:
-        raise RuntimeError(
-            ('type must be either "uniform" or "gaussian", but "%s" was given' % (type)))
+        img = np.random.normal(scale = scale, size=(h, w, 3)).astype(np.float32)
     
-    if correlation is None:
-        pass
-    elif correlation == 'gaussian':
+    if correlation == 'gaussian':
             img = skfilt.gaussian(img, sigma, mode='reflect', multichannel=True)
     else:
-        raise RuntimeError(
-            ('correlation must be either "None" or "gaussian", but "%s" was given' % (correlation)))
+        pass
     return img
 
-
 def get_solid_color(color : t.Union[str,t.Tuple[float, float, float]], 
-                    shape: t.Union[int, t.Tuple[int, int]] ):
+                    shape: t.Union[int, t.Tuple[int, int]]) -> npt.NDArray:
     if color == 'white':
         _color = [1., 1., 1.]
     elif color == 'black':
@@ -169,12 +158,13 @@ def get_solid_color(color : t.Union[str,t.Tuple[float, float, float]],
         img[:,:,i] = _color[i]
     return img
 
-def add_noise(type : str, img : npt.NDArray):
+
+def add_noise(type: str, img: npt.NDArray) -> t.Any:
     return random_noise(img, type)  
 
 
 def preprocess_image(img: npt.NDArray[t.Any], mean: npt.NDArray[float32] = BEETLENET_MEAN,
-                     std: npt.NDArray[float32]= BEETLENET_STD, range = 255.0):
+                     std: npt.NDArray[float32]= BEETLENET_STD, range = 255.0) -> npt.NDArray[np.float32]:
     img = img.astype(np.float32)  # convert from uint8 to float32
     img /= range  # get to [0, 1] range
     img = (img - mean) / std
@@ -182,25 +172,25 @@ def preprocess_image(img: npt.NDArray[t.Any], mean: npt.NDArray[float32] = BEETL
 
 
 def postprocess_image(img: npt.NDArray[t.Any], mean: npt.NDArray[float32] = BEETLENET_MEAN, 
-                        std: npt.NDArray[float32] = BEETLENET_STD):
+                        std: npt.NDArray[float32] = BEETLENET_STD) -> npt.NDArray[t.Any]:
     img = img * std + mean
     img = np.clip(img, 0, 1)
     img = (img*255).astype(np.uint8)
     return img
 
 
-def image_to_tensor(img: npt.NDArray[t.Any], device: str = 'gpu', requires_grad: bool = False):
+def image_to_tensor(img: npt.NDArray[t.Any], device: str = 'gpu', requires_grad: bool = False) -> torch.Tensor:
     tensor = transforms.ToTensor()(img).to(device).unsqueeze(0)
     tensor.requires_grad = requires_grad
     return tensor
 
-def tensor_to_image(tensor : torch.Tensor):
+def tensor_to_image(tensor : torch.Tensor) -> npt.NDArray[np.float32]:
     tensor = tensor.to('cpu').detach().squeeze(0)
     img = tensor.numpy().transpose((1, 2, 0))
     return img
 
 def random_shift(tensor : torch.Tensor, h_shift : int, w_shift : int, 
-                    undo : bool =False, requires_grad : bool = True):
+                    undo : bool =False, requires_grad : bool = True) -> torch.Tensor:
     if undo:
         h_shift = -h_shift
         w_shift = -w_shift
@@ -212,7 +202,7 @@ def random_shift(tensor : torch.Tensor, h_shift : int, w_shift : int,
 
 def show_img(img, title: t.Optional[str] = None, save_path : t.Optional[str]=None, 
                 dpi : t.Union[float]  =200, figsize : t.Tuple[float, float]=(7, 7), 
-                show_axis : str ='on', close : bool =False):
+                show_axis : str ='on', close : bool =False) -> None:
     plt.figure(figsize=figsize)
     plt.imshow(img)
     plt.axis(show_axis)
@@ -225,11 +215,11 @@ def show_img(img, title: t.Optional[str] = None, save_path : t.Optional[str]=Non
         plt.close()
     plt.pause(0.001)  # pause a bit so that plots are updated
 
-def save_img(img, path):
+def save_img(img, path) -> None:
     cv.imwrite(path, img[:, :, ::-1])
 
 
-def make_video(images: t.List[npt.NDArray], shape : t.Union[int, t.Tuple[int, int]], path : str):
+def make_video(images: t.List[npt.NDArray], shape : t.Union[int, t.Tuple[int, int]], path : str) -> None:
     imgs = [Image.fromarray(reshape_image(img, shape)) for img in images]
     imgs[0].save(path, save_all=True, append_images=imgs[1:], loop=0)
 
