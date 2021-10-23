@@ -43,7 +43,7 @@ DREAM_CONFIG: DreamConfig = {
     'std': BEETLENET_STD,
     'input_img_path': None,
     'target_shape': 600,
-    'noise': 'gaussian',
+    'noise': None,
      'noise_scale' : 1.0,
     'correlation' : None,
     'correlation_std' : 1.0,
