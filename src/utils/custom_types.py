@@ -14,7 +14,8 @@ class DreamConfig(t.TypedDict):
     input_img_path:     t.Optional[str]
     target_shape:       t.Union[int, t.Tuple[int, int]]
 
-    noise:              t.Optional[t.Literal['uniform', 'gaussian']]
+    noise:              t.Literal['uniform', 'gaussian']
+    noise_scale:        float
     correlation :       t.Optional[t.Literal['gaussian']]
     correlation_std :   float
     ratio:              float
