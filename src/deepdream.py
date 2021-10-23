@@ -10,31 +10,32 @@ import torch.nn.functional as F
 import cv2 as cv
 from .utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift, save_img, Rendering
 from .utils.config import extend_path, save
+from .utils.custom_types import *
 
 
 
 
-
-def dream_process(model, dream_config, model_config, dataset_config, training_config, img = None):
+def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_config : ModelConfig, 
+                    dataset_config : DatasetConfig, training_config : TrainingConfig, 
+                    img : t.Optional[npt.NDArray[np.float32]] = None) -> t.List[npt.NDArray]:
     if img is not None:
-        pass
+        input_img = img
     elif dream_config['input_img_path'] is not None:
-        img = cv.imread(dream_config['input_img_path'])[:, :, ::-1]
-        img = reshape_image(img, dream_config['target_shape'])
-        img = img.astype(np.float32)  # convert from uint8 to float32
-        img /= 255.0  # get to [0, 1] range
+        input_img = cv.imread(dream_config['input_img_path'])[:, :, ::-1]
+        input_img = reshape_image(input_img, dream_config['target_shape'])
+        input_img = input_img.astype(np.float32)  # convert from uint8 to float32
+        input_img /= np.array(255.0)  # get to [0, 1] range
     else:
-        img = get_noise_image(dream_config['noise'], dream_config['target_shape'], 
+        input_img = get_noise_image(dream_config['noise'], dream_config['target_shape'], 
                                 dream_config['correlation'], dream_config['correlation_std'])
     
-    img = (img - dream_config['mean']) / dream_config['std']
-    output_images = dreamspace(img, model, dream_config, model_config)
+    input_img = (input_img - dream_config['mean']) / dream_config['std']
+    output_images = dreamspace(input_img, model, dream_config, model_config)
 
 
 
     if dream_config['output_img_path'] is not None:
         path = extend_path(dream_config['output_img_path'], dream_config['img_overwrite'])
-        #TODO save_config throws error due to some tensor in the model. not sure how to fix
         save(path, model_config, dataset_config, training_config,  dream_config = dream_config)
         save_img(output_images[-1], path)
 
@@ -48,7 +49,8 @@ def dream_process(model, dream_config, model_config, dataset_config, training_co
 
 
 
-def dreamspace(img, model, dream_config, model_config):
+def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module, 
+                    dream_config : DreamConfig, model_config : ModelConfig) -> t.List[npt.NDArray]:
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
     
@@ -56,8 +58,10 @@ def dreamspace(img, model, dream_config, model_config):
         render = Rendering(dream_config['target_shape'])
 
     for level in range(dream_config['levels']):
-        scaled_tensor = scale_level(img, start_size, level,
-                                    dream_config['ratio'], dream_config['levels'],  str(model_config['device']))
+        scaled_img = scale_level(img, start_size, level,
+                                    dream_config['ratio'], dream_config['levels'])
+        scaled_tensor = image_to_tensor(scaled_img, str(
+            model_config['device']), requires_grad=True)
 
         for i in range(dream_config['num_iters']):
             h_shift, w_shift = np.random.randint(-dream_config['shift_size'], dream_config['shift_size'] + 1, 2)
@@ -66,13 +70,10 @@ def dreamspace(img, model, dream_config, model_config):
             deshifted_tensor = random_shift(dreamt_tensor, h_shift,
                                              w_shift, undo=True, requires_grad = True)
 
-            img = tensor_to_image(deshifted_tensor.clone().detach())
+            img = tensor_to_image(deshifted_tensor)
             output_image = postprocess_image(img, dream_config['mean'],dream_config['std'])
             if dream_config['show'] == True:
                 render.update(output_image)
-                #clear_output(wait=True)
-                #show_img(output_image, figsize=dream_config['figsize'], show_axis='off', 
-                            #dpi=dream_config['dpi'])
 
             if (i % dream_config['save_interval']) == 0:
                 output_images.append(output_image)
@@ -81,18 +82,18 @@ def dreamspace(img, model, dream_config, model_config):
     return output_images
 
 #TODO figure out if rescaling leaves artifacts in output image
-def scale_level(img, start_size, level, ratio=1.8,
-                levels=4, device='cuda'):
+def scale_level(img : npt.NDArray[np.float32], start_size : t.Tuple, level : int, 
+                    ratio : float =1.8,levels : int = 4) -> npt.NDArray[np.float32]:
     exponent = level - levels + 1
-    h, w = np.round(np.float32(start_size) *
+    h, w = np.round(np.float32(np.array(start_size)) *
                     (ratio ** exponent)).astype(np.int32)
     scaled_img = cv.resize(img, (w, h))
-    scaled_tensor = image_to_tensor(scaled_img, device, requires_grad=True)
-    return scaled_tensor
+    return scaled_img
 
 
 
-def dream_ascent(tensor, model, iter, dream_config, model_config):
+def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, iter : int, 
+                dream_config : DreamConfig, model_config : ModelConfig) -> torch.Tensor:
     ## get activations
     _, activations = model(tensor, dream_config['out_info'])
     ### calculate loss on desired layers
@@ -143,9 +144,9 @@ def dream_ascent(tensor, model, iter, dream_config, model_config):
         image_max = torch.tensor(
             ((1 - dream_config['mean']) / dream_config['std']).reshape(1, -1, 1, 1)).to(str(model_config['device']))
     elif dream_config['clamp_type'] == 'unit':
-        image_min, image_max = 0, 1
+        image_min, image_max = torch.tensor(0), torch.tensor(1)
     else:
-        image_min, image_max = -1, 1
+        image_min, image_max = torch.tensor(-1), torch.tensor(1)
     tensor.data = torch.clip(tensor, image_min, image_max)
     return tensor
 
