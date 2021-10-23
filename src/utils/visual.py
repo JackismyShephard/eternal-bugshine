@@ -19,7 +19,7 @@ from numpy import float32, typing as npt
 import io
 from ipywidgets import widgets
 
-from .config import BEETLENET_MEAN, BEETLENET_STD
+from .config import BEETLENET_MEAN, BEETLENET_STD, DEVICE
 from .custom_types import PlotConfig
 
 
@@ -109,9 +109,8 @@ def reshape_image(img: npt.NDArray, shape: t.Union[int, t.Tuple[int, int]]) -> n
 
 
 # QUESTION why are we using mode = 'reflect'?
-def get_noise_image(type: t.Literal['uniform', 'gaussian'], 
-                    shape: t.Union[int, t.Tuple[int, int]],
-                        correlation: t.Optional[str] = None, sigma=1.0, scale = 1.0) -> npt.NDArray[t.Any]:
+def get_noise_image(type: t.Literal['uniform', 'gaussian'], shape: t.Union[int, t.Tuple[int, int]],
+                    correlation: t.Optional[str] = None, sigma=1.0, scale = 1.0) -> npt.NDArray[t.Any]:
     if isinstance(shape, int):
         h,w = shape, shape
     else:
@@ -179,7 +178,8 @@ def postprocess_image(img: npt.NDArray[t.Any], mean: npt.NDArray[float32] = BEET
     return img
 
 
-def image_to_tensor(img: npt.NDArray[t.Any], device: str = 'gpu', requires_grad: bool = False) -> torch.Tensor:
+def image_to_tensor(img: npt.NDArray[t.Any], device: torch.device = DEVICE, 
+                        requires_grad: bool = False) -> torch.Tensor:
     tensor = transforms.ToTensor()(img).to(device).unsqueeze(0)
     tensor.requires_grad = requires_grad
     return tensor

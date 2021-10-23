@@ -32,7 +32,7 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
     else:
         raise RuntimeError('img, input_img_path and noise are all None')
     input_img = (input_img - dream_config['mean']) / dream_config['std']
-    output_images = dreamspace(input_img, model, dream_config, model_config)
+    output_images = dreamspace(input_img, model, dream_config, model_config['device'])
 
 
 
@@ -49,10 +49,18 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
     return output_images
 
 
+#TODO figure out if rescaling leaves artifacts in output image
+def scale_level(img: npt.NDArray[np.float32], start_size: t.Tuple, level: int,
+                ratio: float = 1.8, levels: int = 4) -> npt.NDArray[np.float32]:
+    exponent = level - levels + 1
+    h, w = np.round(np.float32(np.array(start_size)) *
+                    (ratio ** exponent)).astype(np.int32)
+    scaled_img = cv.resize(img, (w, h))
+    return scaled_img
 
 
 def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module, 
-                    dream_config : DreamConfig, model_config : ModelConfig) -> t.List[npt.NDArray]:
+                    dream_config : DreamConfig, device : torch.device) -> t.List[npt.NDArray]:
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
     
@@ -62,13 +70,12 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
     for level in range(dream_config['levels']):
         scaled_img = scale_level(img, start_size, level,
                                     dream_config['ratio'], dream_config['levels'])
-        scaled_tensor = image_to_tensor(scaled_img, str(
-            model_config['device']), requires_grad=True)
+        scaled_tensor = image_to_tensor(scaled_img, device, requires_grad=True)
 
         for i in range(dream_config['num_iters']):
             h_shift, w_shift = np.random.randint(-dream_config['shift_size'], dream_config['shift_size'] + 1, 2)
             shifted_tensor = random_shift(scaled_tensor, h_shift, w_shift, requires_grad = True)
-            dreamt_tensor = dream_ascent(shifted_tensor, model, i, dream_config, model_config)
+            dreamt_tensor = dream_ascent(shifted_tensor, model, i, dream_config, device)
             deshifted_tensor = random_shift(dreamt_tensor, h_shift,
                                              w_shift, undo=True, requires_grad = True)
 
@@ -83,19 +90,8 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
             scaled_tensor = deshifted_tensor
     return output_images
 
-#TODO figure out if rescaling leaves artifacts in output image
-def scale_level(img : npt.NDArray[np.float32], start_size : t.Tuple, level : int, 
-                    ratio : float =1.8,levels : int = 4) -> npt.NDArray[np.float32]:
-    exponent = level - levels + 1
-    h, w = np.round(np.float32(np.array(start_size)) *
-                    (ratio ** exponent)).astype(np.int32)
-    scaled_img = cv.resize(img, (w, h))
-    return scaled_img
-
-
-
 def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, iter : int, 
-                dream_config : DreamConfig, model_config : ModelConfig) -> torch.Tensor:
+                dream_config : DreamConfig, device : torch.device) -> torch.Tensor:
     ## get activations
     _, activations = model(tensor, dream_config['out_info'])
     ### calculate loss on desired layers
@@ -124,7 +120,7 @@ def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, iter : int,
                  ) * 2.0 + dream_config['smooth_coef']
         smooth_grad = CascadeGaussianSmoothing(
             kernel_size=dream_config['kernel_size'], sigma=sigma,
-            device=str(model_config['device']))(grad)
+            device=device)(grad)
     else:
         smooth_grad = grad
     ### normalization of gradient
@@ -142,9 +138,9 @@ def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, iter : int,
     ### clamp gradient to avoid it diverging. vanishing/exploding gradient phenomenon?
     if dream_config['clamp_type'] == 'standardize':
         image_min = torch.tensor(
-            (-dream_config['mean'] / dream_config['std']).reshape(1, -1, 1, 1)).to(str(model_config['device']))
+            (-dream_config['mean'] / dream_config['std']).reshape(1, -1, 1, 1)).to(device)
         image_max = torch.tensor(
-            ((1 - dream_config['mean']) / dream_config['std']).reshape(1, -1, 1, 1)).to(str(model_config['device']))
+            ((1 - dream_config['mean']) / dream_config['std']).reshape(1, -1, 1, 1)).to(device)
     elif dream_config['clamp_type'] == 'unit':
         image_min, image_max = torch.tensor(0), torch.tensor(1)
     else:
