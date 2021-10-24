@@ -11,7 +11,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from .custom_types import ModelConfig, TrainingConfig, DatasetConfig, PlotConfig
-from .config import save, DEVICE
+from .config import DEFAULT_METRICS_PATH, DEFAULT_MODEL_PATH, save, DEVICE
 from .visual import plot_metrics
 
 #IMPLEMENT smarter early stopping that calculates graph trend based on last N values
@@ -64,6 +64,12 @@ def fit(model : torch.nn.Module, data_loaders : t.Dict[str, DataLoader], dataset
     num_epochs = training_config['train_info']['num_epochs']
 
     best_model_wts = copy.deepcopy(model.state_dict())
+
+
+    training_config['model_path'] = DEFAULT_MODEL_PATH
+    training_config['metrics_path'] = DEFAULT_METRICS_PATH
+    training_config['train_info']['best_model_val_loss'] = float("inf")
+
 
     metrics = []
     train_loss, train_acc = [], []
@@ -199,7 +205,6 @@ def fit(model : torch.nn.Module, data_loaders : t.Dict[str, DataLoader], dataset
                          val_acc, val_acc_avg]])
     # load best model weights
     model.load_state_dict(best_model_wts)
-    # QUESTION any way of avoiding the code below?
     save(training_config['model_path']+model_config['model_name'], model_config,
          dataset_config, training_config, best_model_wts, None, data_loaders, metrics, None)
 
