@@ -154,6 +154,8 @@ def get_solid_color(color: t.Union[str, t.Tuple[float, float, float]],
     return img
 
 class CoarseDropout(torch.nn.Module):
+    '''randomly drop out information from input image. 
+        Different types of replacement color can be set using parameter fill_type'''
     def __init__(self,  min_holes: int = 0, max_holes:int = 10, 
                         min_height: int = 5, max_height: int = 10, 
                         min_width:int = 5, max_width: int = 10, 
@@ -199,7 +201,7 @@ class CoarseDropout(torch.nn.Module):
         np_dropout = (np_dropout * 255).astype('uint8')
         return Image.fromarray(np_dropout)
     def __repr__(self) -> str:
-        args = '[{},{},{},{},{},{}, {}]'.format(self.min_holes, self.max_holes, 
+        args = '[{},{},{},{},{},{}, "{}"]'.format(self.min_holes, self.max_holes, 
         self.min_height, self.max_height, self.min_width, self.max_width, self.fill_type)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
