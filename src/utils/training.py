@@ -3,15 +3,16 @@ from IPython.display import clear_output
 import time
 import copy
 import os
-import json
+import typing as t
+import numpy.typing as npt
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 
 from .custom_types import ModelConfig, TrainingConfig, DatasetConfig, PlotConfig
-
+from .config import save, DEVICE
 from .visual import plot_metrics
-from .config import RNG_SEED, DEFAULT_MODEL_PATH, DEFAULT_METRICS_PATH, save, DEVICE
 
 #IMPLEMENT smarter early stopping that calculates graph trend based on last N values
 class EarlyStopping():
@@ -20,7 +21,7 @@ class EarlyStopping():
     certain epochs.
     """
 
-    def __init__(self, patience=5, min_delta=0, min_epochs=0):
+    def __init__(self, patience : int = 5, min_delta : float =0, min_epochs : int=0) ->None:
         """
         :param patience: how many epochs to wait before stopping when loss is
                not improving
@@ -35,7 +36,7 @@ class EarlyStopping():
         self.epochs = 0
         self.min_epochs = min_epochs
 
-    def __call__(self, val_loss):
+    def __call__(self, val_loss : float) -> None:
         self.epochs += 1
         if self.best_loss == None:
             self.best_loss = val_loss
@@ -49,22 +50,21 @@ class EarlyStopping():
                 if self.counter >= self.patience:
                     print('INFO: I have no time for your silly games. Stopping early.')
                     self.early_stop = True
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = 'patience = {}, min_delta = {}, min_epochs = {}'.format(self.patience, self.min_delta, self.min_epochs)
         return self.__class__.__name__ + '({})'.format(args)
 
 
-def fit(model, data_loaders, dataset_sizes,
+def fit(model : torch.nn.Module, data_loaders : t.Dict[str, DataLoader], dataset_sizes : t.Dict[str, int],
         model_config: ModelConfig, training_config: TrainingConfig, dataset_config: DatasetConfig, 
-        plot_config: PlotConfig,
-        clear='terminal', plot=False, save_interval=25):
+        plot_config: PlotConfig, clear='terminal', plot: bool=False, save_interval: int=25) -> npt.NDArray:
     assert model_config is not None
 
-    device = str(model_config['device'])
+    device = model_config['device']
     num_epochs = training_config['train_info']['num_epochs']
+
     best_model_wts = copy.deepcopy(model.state_dict())
-    best_model_epochs = 0
-    best_acc = 0.0
+
     metrics = []
     train_loss, train_acc = [], []
     val_loss, val_acc = [], []
@@ -73,7 +73,6 @@ def fit(model, data_loaders, dataset_sizes,
     epochs = []
     
     criterion = torch.nn.CrossEntropyLoss()
-
     optim_args = training_config['optim_args']
     optimizer = torch.optim.Adam(model.parameters(), lr=optim_args['lr'], eps=optim_args['eps'])
 
@@ -84,8 +83,7 @@ def fit(model, data_loaders, dataset_sizes,
     early_stopping = EarlyStopping(min_epochs = es_args['min_epochs'], 
                         patience=es_args['patience'], min_delta=es_args['min_delta'])
 
-    metrics_path = DEFAULT_METRICS_PATH
-    model_path   = DEFAULT_MODEL_PATH
+
     
     training_config['criterion'] = criterion
     training_config['optim'] = optimizer
@@ -95,7 +93,6 @@ def fit(model, data_loaders, dataset_sizes,
     since = time.time()
     try:
         for epoch in np.arange(num_epochs) + 1:
-            epochs.append(epoch)
             # Each epoch has a training and validation phase
             for phase in ['train', 'val']:
                 if phase == 'train':
@@ -151,12 +148,15 @@ def fit(model, data_loaders, dataset_sizes,
                     val_loss_avg.append(np.mean(val_loss[-plot_config['rolling_avg_window']:len(val_loss)]))
                     val_acc_avg.append(np.mean(val_acc[-plot_config['rolling_avg_window']:len(val_acc)]))
                     
-                    if epoch_acc > best_acc:
-                        best_acc = epoch_acc
+                    if epoch_loss < training_config['train_info']['best_model_val_loss']:
+                        training_config['train_info']['best_model_val_loss'] = epoch_loss
+                        training_config['train_info']['best_model_val_acc'] = epoch_acc
                         best_model_wts = copy.deepcopy(model.state_dict())
-                        best_model_epochs = int(epoch)
-                    early_stopping(epoch_loss)
+                        training_config['train_info']['best_model_epochs'] = int(epoch)
 
+
+                    early_stopping(epoch_loss)
+            epochs.append(epoch)
             if clear == 'notebook':
                 clear_output(wait=True)
             elif clear == 'terminal':
@@ -168,22 +168,17 @@ def fit(model, data_loaders, dataset_sizes,
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(
                 'Val', val_loss[-1], val_acc[-1]))
             print()
-            metrics = np.array([epochs, train_loss, train_acc,
-                                    val_loss, val_acc])
+            metrics = np.array([[epochs, train_loss, train_loss_avg,
+                                 val_loss, val_loss_avg],
+                                [epochs, train_acc, train_acc_avg,
+                                 val_acc, val_acc_avg]])
             if plot == True:
-                # QUESTION why not just save all metrics in "metrics" to begin with?
-                plotting_metrics = np.array([[train_loss, train_loss_avg,
-                                            val_loss, val_loss_avg],
-                                            [train_acc, train_acc_avg,
-                                            val_acc, val_acc_avg]])
-                plot_metrics(plot_config, np.array(epochs), plotting_metrics, metrics_path+model_config['model_name'])
+                plot_metrics(plot_config, metrics[0,0], metrics[:,1:,:], 
+                            training_config['metrics_path'] +model_config['model_name'])
             scheduler.step()
             if epoch % save_interval == 0:
-                temp_state_dict = copy.deepcopy(model.state_dict())
-                model.load_state_dict(best_model_wts)
-                training_config['train_info']['trained_epochs'] = best_model_epochs
-                save(model_path+model_config['model_name'], model_config, dataset_config, training_config, model, None, data_loaders, metrics, None)
-                model.load_state_dict(temp_state_dict)
+                save(training_config['model_path']+model_config['model_name'], model_config,
+                     dataset_config, training_config, best_model_wts, None, data_loaders, metrics, None)
             if early_stopping.early_stop:
                 training_config['train_info']['stopped_early'] = True
                 break
@@ -193,21 +188,31 @@ def fit(model, data_loaders, dataset_sizes,
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
-    print('Best val Acc: {:4f}'.format(best_acc))
+    print('Best model val loss: {:4f}'.format(
+        training_config['train_info']['best_model_val_loss']))
+    print('Best model val Acc: {:4f}'.format(
+        training_config['train_info']['best_model_val_acc']))
+    
+    metrics = np.array([[epochs, train_loss, train_loss_avg,
+                         val_loss, val_loss_avg],
+                        [epochs, train_acc, train_acc_avg,
+                         val_acc, val_acc_avg]])
     # load best model weights
     model.load_state_dict(best_model_wts)
     # QUESTION any way of avoiding the code below?
-    training_config['train_info']['trained_epochs'] = best_model_epochs
-    save(model_path+model_config['model_name'], model_config, dataset_config, training_config, model, None, data_loaders, metrics, None)
+    save(training_config['model_path']+model_config['model_name'], model_config,
+         dataset_config, training_config, best_model_wts, None, data_loaders, metrics, None)
 
     return metrics
 
-def test_model(model, test_loaders, training_config: TrainingConfig, device='gpu'):
+def test_model(model :  torch.nn.Module, test_loader : DataLoader, 
+               training_config: TrainingConfig, device : torch.device=DEVICE,
+                mode : t.Literal['acc', 'loss'] = 'acc'):
     model.eval()
     correct = 0
     total = 0
     with torch.no_grad():
-        for data in test_loaders:
+        for data in test_loader:
             images, labels = data[0].to(device), data[1].to(device)
             outputs = model(images)
             _, predicted = torch.max(outputs.data, 1)
