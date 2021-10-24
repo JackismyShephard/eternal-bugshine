@@ -14,6 +14,7 @@ from numpy import typing as npt
 
 from .custom_types import *
 from .transforms import *
+from torch.utils.data import DataLoader
 
 RNG_SEED = 0x1010101
 
@@ -164,9 +165,12 @@ DEFAULT_TRAINING: TrainingConfig = {
     'scheduler':            None,
     'early_stopping':       None,
     'early_stopping_args':  {'min_epochs': 200, 'patience': 5, 'min_delta': 0},
-    'train_info':           {'num_epochs': 400, 'trained_epochs': 0, 
+    'train_info':           {'num_epochs': 400, 'best_model_epochs': 0, 
                              'lr_decay': 0.995, 'stopped_early': False,
-                             'test_acc':   0},
+                             'test_acc':   0, 'best_model_val_acc' : 0.0, 
+                             'best_model_val_loss' : float("inf")},
+    'metrics_path' : DEFAULT_METRICS_PATH,
+    'model_path': DEFAULT_MODEL_PATH
 }  
 
 DEFAULT_PLOTTING: PlotConfig = {
@@ -283,25 +287,26 @@ def add_info_to_path(path: str, info : t.Optional[str], overwrite: bool = False)
 
 
 def save(path :str, model_config: ModelConfig, dataset_config: DatasetConfig, 
-         training_config: TrainingConfig, model: t.Optional[torch.nn.Module] = None, 
-         optim=None, dataloaders=None, train_metrics: t.Optional[npt.NDArray] = None, 
+         training_config: TrainingConfig, model_state: t.OrderedDict[str, torch.Tensor] = None,
+         optim_state: dict = None, dataloaders: t.Dict[str, DataLoader]=None, 
+        train_metrics: t.Optional[npt.NDArray] = None, 
         dream_config: t.Optional[DreamConfig] = None) -> None:
     (root, _) = os.path.splitext(path)
     json_path = root + '_aux_dict.json'
 
-    if model is not None:
-        torch.save(model.state_dict(), path + '_parameters.pt')
-    if optim is not None:
-        torch.save(optim.state_dict(), path + '_optim.pt')
+    if model_state is not None:
+        torch.save(model_state, path + '_parameters.pt')
+    if optim_state is not None:
+        torch.save(optim_state, path + '_optim.pt')
     if dataloaders is not None:
         torch.save(dataloaders, path + '_dataloaders.pt')
     if train_metrics is not None:
         np.save(path + '_train_metrics.npy', train_metrics)
 
-    new_config = {'model_info': model_config, 'dataset_info': dataset_config, 
+    config = {'model_info': model_config, 'dataset_info': dataset_config, 
                   'train_info': training_config, 'dream_info':dream_config}
 
-    new_config = copy.deepcopy(new_config)
+    new_config = copy.deepcopy(config)
 
     #convert troublesome dict entries:
     new_config['model_info']['device'] = str(new_config['model_info']['device'])
