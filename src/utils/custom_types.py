@@ -102,8 +102,8 @@ class TrainingConfig(t.TypedDict):
     """Describes parameters used for training, besides model and dataset"""
     optim:                      t.Optional[torch.optim.Optimizer]
     optim_args:                 OptimArgs
-    criterion:                  t.Optional[torch.nn.Module]
-    scheduler:                  t.Optional[object]
+    criterion:                  t.Optional[torch.nn.modules.loss._Loss]
+    scheduler:                  t.Optional[torch.optim.lr_scheduler._LRScheduler]
     early_stopping:             t.Optional[object] 
     early_stopping_args:        EarlyStoppingArgs
     train_info:                 TrainingInformation
