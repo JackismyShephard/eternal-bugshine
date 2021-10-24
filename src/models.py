@@ -1,11 +1,15 @@
-import torch
+import ssl 
 import copy
-import numpy as np
 import json
+import typing as t
+
+import numpy as np
+import pandas as pd
+
+import torch
 import torch.nn as nn
 from torchvision import models
-import typing as t
-import pandas as pd
+
 from .utils.custom_types import *
 from .utils.config import DEFAULT_METRICS_PATH, DEFAULT_MODEL_PATH, DEVICE
 from .utils.transforms import string_to_class
@@ -13,6 +17,7 @@ from .utils.transforms import string_to_class
 
 
 def download_model(model_config: ModelConfig, dataset_config: DatasetConfig = None):
+    ssl._create_default_https_context = ssl._create_unverified_context
     name = model_config['model_architecture']
     pretrained = model_config['pretrained']
     device = model_config['device']
