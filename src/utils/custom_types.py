@@ -10,7 +10,7 @@ TARGET_DICT= t.Dict[str,t.Union[t.Tuple[int, int], t.List[int], int, None]]
 
 class DreamConfig(t.TypedDict):
     """Contains parameters and settings used in the dreamspace function"""
-    target_dict:           TARGET_DICT
+    target_dict:        TARGET_DICT
     mean:               npt.NDArray[np.float32]
     std:                npt.NDArray[np.float32]
     input_img_path:     t.Optional[str]

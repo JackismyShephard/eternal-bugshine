@@ -250,6 +250,19 @@ def extend_path(path : str, overwrite : bool =False) -> str:
         return (root + str(i) + ext)
 
 
+def add_info_to_path(path: str, info : t.Optional[str], overwrite: bool = False) -> str:
+    (root, ext) = os.path.splitext(path)
+    if info is not None:
+        root = root + info
+    if overwrite:
+        return root + ext
+    else:
+        i = 0
+        while os.path.exists(root + str(i) + ext):
+            i += 1
+        return (root + '_repeat=' + str(i) + ext)
+
+
 def save(path :str, model_config: ModelConfig, dataset_config: DatasetConfig, 
          training_config: TrainingConfig, model: t.Optional[torch.nn.Module] = None, 
          optim=None, dataloaders=None, train_metrics: t.Optional[npt.NDArray] = None, 

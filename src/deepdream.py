@@ -4,14 +4,15 @@ import numbers
 import math
 
 import numpy as np
+import cv2 as cv
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import cv2 as cv
-from .utils.visual import reshape_image, get_noise_image, tensor_to_image, show_img, postprocess_image, make_video, image_to_tensor, random_shift, save_img, Rendering
-from .utils.config import extend_path, save
-from .utils.custom_types import *
 
+from .utils.config import add_info_to_path, save
+from .utils.custom_types import *
+from .utils.visual import reshape_image, get_noise_image, tensor_to_image, postprocess_image, make_video, image_to_tensor, random_shift, save_img, Rendering
 
 
 
@@ -35,14 +36,17 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
         raise RuntimeError('img, input_img_path and noise are all None')
     input_img = (input_img - dream_config['mean']) / dream_config['std']
     output_images = dreamspace(input_img, model, dream_config, model_config['device'])
+    output_img_info = '_model=' + model_config['model_name'] + '_layer=' + str(dream_config['target_dict'])
 
     if dream_config['output_img_path'] is not None:
-        path = extend_path(dream_config['output_img_path'], dream_config['img_overwrite'])
+        path = add_info_to_path(dream_config['output_img_path'], 
+            output_img_info, dream_config['img_overwrite'])
         save(path, model_config, dataset_config, training_config,  dream_config = dream_config)
         save_img(output_images[-1], path)
 
     if dream_config['video_path'] is not None:
-        path = extend_path(dream_config['video_path'], dream_config['video_overwrite'])
+        path = add_info_to_path(
+            dream_config['video_path'], output_img_info, dream_config['video_overwrite'])
         save(path, model_config, dataset_config, training_config,dream_config = dream_config)
         make_video(output_images, dream_config['target_shape'], path)
     
