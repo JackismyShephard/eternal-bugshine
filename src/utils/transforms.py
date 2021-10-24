@@ -1,6 +1,7 @@
 from PIL import Image
 import typing as t
 import numpy as np
+from numpy import typing as npt
 import torch
 import torchvision.transforms
 from torchvision.transforms import functional, ToTensor
@@ -120,12 +121,43 @@ class RandomizeBackgroundRGBNoise(torch.nn.Module):
     def __repr__(self) -> str:
         args = '[{}]'.format(self.cutoff)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
-#TODO allow holes to be filled with noise or perhaps solid colors?
+
+
+def get_solid_color(color: t.Union[str, t.Tuple[float, float, float]],
+                    shape: t.Union[int, t.Tuple[int, int]]) -> npt.NDArray[t.Any]:
+    if color == 'white':
+        _color = [1., 1., 1.]
+    elif color == 'black':
+        _color = [0., 0., 0.]
+    elif color == 'red':
+        _color = [1., 0., 0.]
+    elif color == 'green':
+        _color = [0., 1., 0.]
+    elif color == 'blue':
+        _color = [0., 0., 1.]
+    else:
+        _color = color
+
+    if isinstance(shape, int):
+        (h, w) = (shape, shape)
+
+    elif isinstance(shape, tuple):
+        h, w = shape
+
+    else:
+        raise TypeError('shape must be either an int or tuple')
+
+    img = np.zeros(shape=(h, w, 3), dtype=np.float32)
+
+    for i in range(3):
+        img[:, :, i] = _color[i]
+    return img
 
 class CoarseDropout(torch.nn.Module):
     def __init__(self,  min_holes: int = 0, max_holes:int = 10, 
                         min_height: int = 5, max_height: int = 10, 
-                        min_width:int = 5, max_width: int = 10) -> None:
+                        min_width:int = 5, max_width: int = 10, 
+                        fill_type : t.Optional[t.Union[str, t.Tuple[float, float, float]]] = None) -> None:
         super().__init__()
         self.rng = np.random.default_rng()
         self.min_holes = min_holes
@@ -134,12 +166,13 @@ class CoarseDropout(torch.nn.Module):
         self.max_width = max_width
         self.min_height = min_height
         self.min_width = min_width
+        self.fill_type = fill_type
 
     def forward(self, img: Image.Image) -> Image.Image:
         if not isinstance(img, Image.Image):
             raise TypeError("img should be PIL.Image.Image. Got {}".format(type(img)))
 
-        np_x = np.array(img)
+        np_x = np.array(img) / 255
         (h, w, _) = np_x.shape
         mask = np.ones(np_x.shape)
         holes = self.rng.integers(self.min_holes, self.max_holes)
@@ -149,10 +182,25 @@ class CoarseDropout(torch.nn.Module):
             x = self.rng.integers(0, w)
             y = self.rng.integers(0, h)
             mask[y:y+height,x:x+width,:] = 0
-        np_x = (mask * np_x).astype('uint8')
-        return Image.fromarray(np_x)
+
+        if self.fill_type == 'random_rgb':
+            fill = self.rng.random(np_x.shape)
+        elif self.fill_type == 'random_uniform':
+            r = np.ones((h,w)) * torch.rand(1).item()
+            g = np.ones((h,w)) * torch.rand(1).item()
+            b= np.ones((h,w)) * torch.rand(1).item()
+            fill = np.dstack([r, g, b])
+        elif self.fill_type is not None:
+            fill = get_solid_color(self.fill_type, (h,w))
+        else:
+            fill = 0
+        
+        np_dropout = np.where(mask == 0, fill, np_x)
+        np_dropout = (np_dropout * 255).astype('uint8')
+        return Image.fromarray(np_dropout)
     def __repr__(self) -> str:
-        args = '[{},{},{},{},{},{}]'.format(self.min_holes, self.max_holes, self.min_height, self.max_height, self.min_width, self.max_width)
+        args = '[{},{},{},{},{},{}, {}]'.format(self.min_holes, self.max_holes, 
+        self.min_height, self.max_height, self.min_width, self.max_width, self.fill_type)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
 #wrapper classes to load json representations of torchvision transforms. probably exists a smarter way, but im doing it
@@ -204,7 +252,9 @@ class ToTensor:
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
 class Normalize(torch.nn.Module):
-    def __init__(self, mean: t.List[float], std: t.List[float], inplace : bool =False) -> None:
+    def __init__(self, mean: t.Union[t.Sequence[float], npt.NDArray[np.float32]], 
+                 std: t.Union[t.Sequence[float], npt.NDArray[np.float32]], 
+                 inplace: bool = False) -> None:
         super().__init__()
         self.transform = torchvision.transforms.Normalize(mean, std, inplace)
         self.mean = mean
