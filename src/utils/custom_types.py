@@ -1,8 +1,12 @@
 import typing as t
-import torch
-from .transforms import ToTensor
+
 import numpy as np
 from numpy import typing as npt
+
+import torch
+
+from .transforms import ToTensor
+
 
 IMG_EXT= t.Literal['.png', '.jpg', '.pdf', '.gif']
 
