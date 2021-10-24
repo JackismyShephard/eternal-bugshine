@@ -280,28 +280,28 @@ def save(path :str, model_config: ModelConfig, dataset_config: DatasetConfig,
     if train_metrics is not None:
         np.save(path + '_train_metrics.npy', train_metrics)
 
-    new_config = {}
-
-    new_config.update(model_info=model_config)
-    new_config.update(dataset_info=dataset_config)
-    new_config.update(train_info=training_config)
-    new_config.update(dream_info=dream_config)
+    new_config = {'model_info': model_config, 'dataset_info': dataset_config, 
+                  'train_info': training_config, 'dream_info':dream_config}
 
     new_config = copy.deepcopy(new_config)
 
     #convert troublesome dict entries:
-    new_config['dataset_info']['data_augmentations'] = [str(aug) for aug in new_config['dataset_info']['data_augmentations']]
     new_config['model_info']['device'] = str(new_config['model_info']['device'])
+
+    new_config['dataset_info']['data_augmentations'] = [str(aug) for aug in new_config['dataset_info']['data_augmentations']]
     new_config['dataset_info']['mean'] = new_config['dataset_info']['mean'].tolist()
     new_config['dataset_info']['std'] = new_config['dataset_info']['std'].tolist()
-    if dream_config is not None:
-        new_config['dream_info']['mean'] = new_config['dream_info']['mean'].tolist()
-        new_config['dream_info']['std'] = new_config['dream_info']['std'].tolist()
-
+  
     new_config['train_info']['optim'] = str(new_config['train_info']['optim'])
     new_config['train_info']['criterion'] = str(new_config['train_info']['criterion'])
     new_config['train_info']['early_stopping'] = str(new_config['train_info']['early_stopping'])
     new_config['train_info']['scheduler'] = str(new_config['train_info']['scheduler'])
+
+    if dream_config is not None:
+        new_config['dream_info']['mean'] = new_config['dream_info']['mean'].tolist()
+        new_config['dream_info']['std'] = new_config['dream_info']['std'].tolist()
+    else:
+        new_config.pop('dream_info')
     
     with open(json_path, 'w') as json_file:
         json.dump(new_config, json_file, indent = 4)
