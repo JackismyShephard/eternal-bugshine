@@ -259,7 +259,7 @@ def add_info_to_path(path: str, info : t.Optional[str], overwrite: bool = False)
         return root + ext
     else:
         i = 0
-        while os.path.exists(root + str(i) + ext):
+        while os.path.exists(root + '_repeat=' + str(i) + ext):
             i += 1
         return (root + '_repeat=' + str(i) + ext)
 
