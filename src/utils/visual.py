@@ -134,37 +134,6 @@ def get_noise_image(type: t.Literal['uniform', 'gaussian'], shape: t.Union[int, 
         pass
     return img
 
-def get_solid_color(color : t.Union[str,t.Tuple[float, float, float]], 
-                    shape: t.Union[int, t.Tuple[int, int]]) -> npt.NDArray[t.Any]:
-    if color == 'white':
-        _color = [1., 1., 1.]
-    elif color == 'black':
-        _color = [0.,0.,0.]
-    elif color == 'red':
-        _color = [1.,0.,0.]
-    elif color == 'green':
-        _color = [0.,1.,0.]
-    elif color == 'blue':
-        _color = [0.,0.,1.]
-    else:
-        _color = color
-    
-    if isinstance(shape, int):
-        (h,w) = (shape, shape)
-
-    elif isinstance(shape, tuple):
-        h,w = shape
-        
-    else:
-        raise TypeError('shape must be either an int or tuple')
-    
-    img = np.zeros(shape=(h,w,3), dtype=np.float32)
-
-    for i in range(3):
-        img[:,:,i] = _color[i]
-    return img
-
-
 def add_noise(type: str, img: npt.NDArray) -> t.Any:
     return random_noise(img, type)  
 
