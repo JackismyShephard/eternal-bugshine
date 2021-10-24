@@ -17,29 +17,29 @@ from .transforms import *
 
 RNG_SEED = 0x1010101
 
-IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+IMAGENET_MEAN : npt.NDArray[np.float32] = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+IMAGENET_STD: npt.NDArray[np.float32] = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
-BEETLENET_MEAN = np.array([0.8442649, 0.82529384, 0.82333773], dtype=np.float32)
-BEETLENET_STD = np.array([0.28980458, 0.32252666, 0.3240354], dtype=np.float32)
-BEETLENET_AVERAGE_SHAPE = (224, 448)
+BEETLENET_MEAN: npt.NDArray[np.float32] = np.array([0.8442649, 0.82529384, 0.82333773], dtype=np.float32)
+BEETLENET_STD: npt.NDArray[np.float32] = np.array([0.28980458, 0.32252666, 0.3240354], dtype=np.float32)
+BEETLENET_AVERAGE_SHAPE: t.Tuple[float, float]= (224, 448)
 
-BEETLENET_PATH = './data/beetles/images/' 
-BEETLENET_NUM_CLASSES = len(next(os.walk(BEETLENET_PATH))[1])
+BEETLENET_PATH : str = './data/beetles/images/' 
+BEETLENET_NUM_CLASSES : int = len(next(os.walk(BEETLENET_PATH))[1])
 
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-DEFAULT_NUM_WORKERS = mp.cpu_count()//2
+DEVICE : torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+DEFAULT_NUM_WORKERS : int = mp.cpu_count()//2
 
 
-DEFAULT_OUTPUT_PATH = './output/' + getpass.getuser() + '/'
+DEFAULT_OUTPUT_PATH : str = './output/' + getpass.getuser() + '/'
 Path(DEFAULT_OUTPUT_PATH).mkdir(parents=True, exist_ok=True)
 Path(DEFAULT_OUTPUT_PATH + 'figures').mkdir(parents=True, exist_ok=True)
 Path(DEFAULT_OUTPUT_PATH + 'videos').mkdir(parents=True, exist_ok=True)
 Path(DEFAULT_OUTPUT_PATH + 'models').mkdir(parents=True, exist_ok=True)
 Path('models').mkdir(parents=True, exist_ok=True)
 
-DEFAULT_MODEL_PATH = 'models/'
-DEFAULT_METRICS_PATH = 'models/'
+DEFAULT_MODEL_PATH : str = 'models/'
+DEFAULT_METRICS_PATH : str = 'models/'
 
 DREAM_CONFIG: DreamConfig = {
     'target_dict': {'fc': None}, #None = whole layer, otherwise specify index as tuple (y,x). 
@@ -242,6 +242,20 @@ jens_params = {
 }
 
 JENS_DATASET = get_new_config(jens_params, BEETLE_DATASET)
+
+JACKI_PARAM = {
+    'data_augmentations':   [
+        CoarseDropout(min_holes =5, max_holes =15,
+                      min_height =20, max_height =40,
+                      min_width =20, max_width =40,
+                      fill_type = 'red'),
+        Resize(BEETLENET_AVERAGE_SHAPE),
+        ToTensor(),
+        Normalize(BEETLENET_MEAN, BEETLENET_STD)
+    ]
+}
+
+JACKISET = get_new_config(JACKI_PARAM, BEETLE_DATASET)
 
 
 def extend_path(path : str, overwrite : bool =False) -> str:
