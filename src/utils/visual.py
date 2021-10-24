@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.transforms as plt_transform
 import matplotlib.colors as mcolors
-
+import imageio
 import numpy as np
 import cv2 as cv
 from PIL import Image
@@ -195,7 +195,24 @@ def save_img(img : npt.NDArray[t.Any], path : str) -> None:
     cv.imwrite(path, img[:, :, ::-1])
 
 
-def make_video(images: t.List[npt.NDArray[t.Any]], shape : t.Union[int, t.Tuple[int, int]], path : str) -> None:
+def save_video(path : str, images: t.List[npt.NDArray[t.Any]], shape: t.Union[int, t.Tuple[int, int]], quality : int = 7, 
+                fps: int = 24, macro_block_size :int  = 1) -> None:
+    outputdata = np.array([reshape_image(img, shape) for img in images])
+    imageio.mimwrite(path, outputdata, quality=quality,
+                     macro_block_size=macro_block_size, fps=fps)
+
+def save_video2(path, images: t.List[npt.NDArray[t.Any]], shape: t.Union[int, t.Tuple[int, int]], fps: int = 24) -> None:
+    reshaped_imgs = [cv.cvtColor(reshape_image(
+        img, shape), cv.COLOR_RGB2BGR) for img in images]
+    (h, w, _) = reshaped_imgs[0].shape
+    print(shape)
+    out = cv.VideoWriter(path, cv.VideoWriter_fourcc(
+        'M', 'P', 'E', 'G'), fps, (w, h), False)
+    for image in reshaped_imgs:
+        out.write(image)
+    out.release()
+
+def save_video3(path: str, images: t.List[npt.NDArray[t.Any]], shape: t.Union[int, t.Tuple[int, int]]) -> None:
     imgs = [Image.fromarray(reshape_image(img, shape)) for img in images]
     imgs[0].save(path, save_all=True, append_images=imgs[1:], loop=0)
 

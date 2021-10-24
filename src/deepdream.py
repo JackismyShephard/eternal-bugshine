@@ -12,7 +12,7 @@ import torch.nn.functional as F
 
 from .utils.config import add_info_to_path, save
 from .utils.custom_types import *
-from .utils.visual import reshape_image, get_noise_image, tensor_to_image, postprocess_image, make_video, image_to_tensor, random_shift, save_img, Rendering
+from .utils.visual import reshape_image, get_noise_image, tensor_to_image, postprocess_image, image_to_tensor, random_shift, save_img, Rendering, save_video
 
 
 
@@ -50,10 +50,9 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
         path = add_info_to_path(
             dream_config['video_path'], output_img_info, dream_config['video_overwrite'])
         save(path, model_config, dataset_config, training_config,dream_config = dream_config)
-        make_video(output_images, dream_config['target_shape'], path)
+        save_video(path, output_images, dream_config['target_shape'])
     
     return output_images
-
 
 #TODO figure out if rescaling leaves artifacts in output image
 def scale_level(img: npt.NDArray[t.Any], start_size: t.Tuple, level: int,
