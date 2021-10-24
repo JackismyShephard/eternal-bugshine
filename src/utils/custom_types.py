@@ -97,9 +97,11 @@ class EarlyStoppingArgs(t.TypedDict):
 class TrainingInformation(t.TypedDict):
     """Holds information about a training session"""
     num_epochs:                 int
-    trained_epochs:             int
+    best_model_epochs:          int
     lr_decay:                   float
     stopped_early:              bool
+    best_model_val_acc:         float
+    best_model_val_loss:        float
     test_acc:                   float
 
 class TrainingConfig(t.TypedDict):
@@ -111,6 +113,8 @@ class TrainingConfig(t.TypedDict):
     early_stopping:             t.Optional[object] 
     early_stopping_args:        EarlyStoppingArgs
     train_info:                 TrainingInformation
+    metrics_path:               str
+    model_path:                 str
 
 class PlotConfig(t.TypedDict):
     """Holds parameters used to plot during training"""
