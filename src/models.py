@@ -12,10 +12,7 @@ from .utils.transforms import string_to_class
 
 
 
-
-
-
-def get_model(model_config: ModelConfig, dataset_config: DatasetConfig = None):
+def download_model(model_config: ModelConfig, dataset_config: DatasetConfig = None):
     name = model_config['model_architecture']
     pretrained = model_config['pretrained']
     device = model_config['device']
@@ -35,8 +32,6 @@ def get_model(model_config: ModelConfig, dataset_config: DatasetConfig = None):
     else:
         num_classes = model.fc.in_features
     model = model.to(device)
-    model.aux_dict = {'name': name, 'pretrained': pretrained, 
-                      'num_classes': num_classes, 'train_iters': 0, 'test_acc': None}
     return model
 
 
