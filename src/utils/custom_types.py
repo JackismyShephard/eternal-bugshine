@@ -6,9 +6,11 @@ from numpy import typing as npt
 
 IMG_EXT= t.Literal['.png', '.jpg', '.pdf', '.gif']
 
+TARGET_DICT= t.Dict[str,t.Union[t.Tuple[int, int], t.List[int], int, None]]
+
 class DreamConfig(t.TypedDict):
     """Contains parameters and settings used in the dreamspace function"""
-    out_info:           t.Dict[str, t.Union[t.Tuple[int, int], t.List[int], int, None]]
+    target_dict:           TARGET_DICT
     mean:               npt.NDArray[np.float32]
     std:                npt.NDArray[np.float32]
     input_img_path:     t.Optional[str]

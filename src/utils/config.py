@@ -38,7 +38,7 @@ DEFAULT_MODEL_PATH = 'models/'
 DEFAULT_METRICS_PATH = 'models/'
 
 DREAM_CONFIG: DreamConfig = {
-    'out_info': {'fc': None}, #None = whole layer, otherwise specify index as tuple (y,x). 
+    'target_dict': {'fc': None}, #None = whole layer, otherwise specify index as tuple (y,x). 
     'mean': BEETLENET_MEAN,
     'std': BEETLENET_STD,
     'input_img_path': None,

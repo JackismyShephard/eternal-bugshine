@@ -97,7 +97,7 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
 def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, iter : int, 
                 dream_config : DreamConfig, device : torch.device) -> torch.Tensor:
     ## get activations
-    _, activations = model(tensor, dream_config['out_info'])
+    _, activations = model(tensor, dream_config['target_dict'])
     ### calculate loss on desired layers
     losses = []
     for layer_activation in activations:
