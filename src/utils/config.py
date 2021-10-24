@@ -69,7 +69,8 @@ DREAM_CONFIG: DreamConfig = {
     'output_img_path': None,
     'img_overwrite' : False,
     'video_path': None,
-    'video_overwrite' : False
+    'video_overwrite' : False,
+    'output_path_info': True
 }
 
 BEETLE_DATASET: DatasetConfig = {

@@ -42,6 +42,7 @@ class DreamConfig(t.TypedDict):
     img_overwrite:      bool
     video_path:         t.Optional[str]
     video_overwrite:    bool
+    output_path_info:   bool
 
 class ModelConfig(t.TypedDict):
     """Holds information used when loading a model"""

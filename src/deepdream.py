@@ -36,8 +36,10 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
         raise RuntimeError('img, input_img_path and noise are all None')
     input_img = (input_img - dream_config['mean']) / dream_config['std']
     output_images = dreamspace(input_img, model, dream_config, model_config['device'])
-    output_img_info = '_model=' + model_config['model_name'] + '_layer=' + str(dream_config['target_dict'])
-
+    if dream_config['output_path_info']:
+        output_img_info = '_model=' + model_config['model_name'] + '_layer=' + str(dream_config['target_dict'])
+    else:
+        output_img_info = None
     if dream_config['output_img_path'] is not None:
         path = add_info_to_path(dream_config['output_img_path'], 
             output_img_info, dream_config['img_overwrite'])
