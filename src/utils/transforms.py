@@ -3,7 +3,7 @@ import typing as t
 import numpy as np
 import torch
 import torchvision.transforms
-from torchvision.transforms import functional
+from torchvision.transforms import functional, ToTensor
 
 
 
@@ -190,7 +190,6 @@ class Resize(torch.nn.Module):
         args = '[[{},{}]]'.format(self.size[0], self.size[1])
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
-
 class ToTensor:
     def __init__(self):
         super().__init__()
@@ -217,27 +216,27 @@ class Normalize(torch.nn.Module):
 
 
 def string_to_class(transform_dict: dict):
-    for key, value in transform_dict.items():
-        if key == 'RandomVerticalFlip':
-            retval = RandomVerticalFlip(*value)
-        elif key == 'RandomRotation':
-            retval = RandomRotation(*value)
-        elif key == 'Resize':
-            retval = Resize(*value)
-        elif key == 'ToTensor':
-            retval = ToTensor()
-        elif key == 'Normalize':
-            retval = Normalize(*value)
-        elif key == 'RandomizeBackground':
-            retval = RandomizeBackground(*value)
-        elif key == 'RandomizeBackgroundGraytone':
-            retval = RandomizeBackgroundGraytone(*value)
-        elif key == 'RandomizeBackgroundRGBNoise':
-            retval = RandomizeBackgroundRGBNoise(*value)
-        elif key == 'NotStupidRandomResizedCrop':
-            retval = NotStupidRandomResizedCrop(*value)
-        elif key == 'CoarseDropout':
-            retval = CoarseDropout(*value)
-        else:
-            raise TypeError('key {} is not a recognized transformation class. ')
+    [(key, value)] = list(transform_dict.items())
+    if key == 'RandomVerticalFlip':
+        retval = RandomVerticalFlip(*value)
+    elif key == 'RandomRotation':
+        retval = RandomRotation(*value)
+    elif key == 'Resize':
+        retval = Resize(*value)
+    elif key == 'ToTensor':
+        retval = ToTensor()
+    elif key == 'Normalize':
+        retval = Normalize(*value)
+    elif key == 'RandomizeBackground':
+        retval = RandomizeBackground(*value)
+    elif key == 'RandomizeBackgroundGraytone':
+        retval = RandomizeBackgroundGraytone(*value)
+    elif key == 'RandomizeBackgroundRGBNoise':
+        retval = RandomizeBackgroundRGBNoise(*value)
+    elif key == 'NotStupidRandomResizedCrop':
+        retval = NotStupidRandomResizedCrop(*value)
+    elif key == 'CoarseDropout':
+        retval = CoarseDropout(*value)
+    else:
+        raise TypeError('key {} is not a recognized transformation class. ')
     return retval
