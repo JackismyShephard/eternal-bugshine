@@ -22,6 +22,7 @@ class DreamConfig(t.TypedDict):
     correlation_std :   float
     ratio:              float
     levels:             int
+    gauss_filter:       t.Optional[t.Tuple[int, int, float, float]]
     shift_size:         int
     num_iters:          int
     lr:                 float

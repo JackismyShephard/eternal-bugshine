@@ -49,6 +49,7 @@ DREAM_CONFIG: DreamConfig = {
     'correlation_std' : 1.0,
     'ratio': 1.8,
     'levels': 4,
+    'gauss_filter' : None,
     'shift_size': 32,
     'num_iters': 10,
     'lr': 0.09,

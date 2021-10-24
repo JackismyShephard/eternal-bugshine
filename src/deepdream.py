@@ -51,15 +51,24 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
 
 #TODO figure out if rescaling leaves artifacts in output image
 def scale_level(img: npt.NDArray[t.Any], start_size: t.Tuple, level: int,
-                ratio: float = 1.8, levels: int = 4) -> npt.NDArray[t.Any]:
+                ratio: float = 1.8, levels: int = 4, 
+                gauss_filter : t.Optional[t.Tuple[int, int, float, float]] = None) -> npt.NDArray[t.Any]:
+
     exponent = level - levels + 1
     h, w = np.round(np.float32(np.array(start_size)) *
                     (ratio ** exponent)).astype(np.int32)
     if (h < img.shape[0]):
         interpolation_mode = cv.INTER_AREA
+        if gauss_filter is not None:
+            img = cv.GaussianBlur(img, ksize = gauss_filter[0:2] ,
+                                  sigmaX=gauss_filter[2], sigmaY=gauss_filter[3], borderType=cv.BORDER_REFLECT)
+        scaled_img = cv.resize(img, (w, h), interpolation=interpolation_mode)
     else:
         interpolation_mode = cv.INTER_CUBIC
-    scaled_img = cv.resize(img, (w, h), interpolation = interpolation_mode)
+        scaled_img = cv.resize(img, (w, h), interpolation=interpolation_mode)
+        if gauss_filter is not None:
+            scaled_img = cv.GaussianBlur(img, ksize=gauss_filter[0:2],
+                                         sigmaX=gauss_filter[2], sigmaY=gauss_filter[3], borderType=cv.BORDER_REFLECT)
     return scaled_img
 
 
