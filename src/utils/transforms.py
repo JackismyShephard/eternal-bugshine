@@ -10,11 +10,11 @@ from torchvision.transforms import functional, ToTensor
 
 class RandomizeBackground(torch.nn.Module):  
     """Replace beetle PIL image background color with a random color."""
-    def __init__(self, cutoff: float):
+    def __init__(self, cutoff: float) -> None:
         super().__init__()
         self.cutoff = cutoff
 
-    def forward(self, img: t.Union[Image.Image, torch.Tensor]):
+    def forward(self, img: Image.Image) -> Image.Image:
         if not isinstance(img, Image.Image): 
             raise TypeError("img should be PIL.Image.Image. Got {}".format(type(img)))
 
@@ -34,7 +34,7 @@ class RandomizeBackground(torch.nn.Module):
         np_x = np.where(mask == True, new_bg, np_x)
         np_x = (np_x * 255).astype('uint8')
         return Image.fromarray(np_x)
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = '[{}]'.format(self.cutoff)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
@@ -44,7 +44,7 @@ class NotStupidRandomResizedCrop(torch.nn.Module):
         Crops a section of a PIL image with shape d*img.shape, where
         min_scale/100 <= d <= max_scale/100, at some random coordinate in the image."""
 
-    def __init__(self, min_scale: float = 0.5, max_scale: float = 1):
+    def __init__(self, min_scale: float = 0.5, max_scale: float = 1) -> None:
         
         super().__init__()
         self.rng = np.random.default_rng() 
@@ -52,7 +52,7 @@ class NotStupidRandomResizedCrop(torch.nn.Module):
         self.max_scale = max_scale
         self.int_min_scale = int(min_scale * 100)
         self.int_max_scale = int(max_scale * 100)
-    def forward(self, img: t.Union[Image.Image, torch.Tensor]):
+    def forward(self, img: Image.Image) -> Image.Image:
         if not isinstance(img, Image.Image):
             raise TypeError("img should be PIL.Image.Image. Got {}".format(type(img)))
 
@@ -72,19 +72,19 @@ class NotStupidRandomResizedCrop(torch.nn.Module):
         
         img = functional.resize(img, [h,w]) 
         return img
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = '[{},{}]'.format(self.min_scale, self.max_scale)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
 class RandomizeBackgroundGraytone(torch.nn.Module):
     """Replace beetle PIL image background color with a random graytone."""
-    def __init__(self, cutoff: float, min: float = 0, max: float = 1): 
+    def __init__(self, cutoff: float, min: float = 0, max: float = 1) -> None: 
         super().__init__()
         self.rng = np.random.default_rng()
         self.cutoff = cutoff
         self.min = min
         self.max = max
-    def forward(self, img: t.Union[Image.Image, torch.Tensor]):
+    def forward(self, img: Image.Image) -> Image.Image:
         if not isinstance(img, Image.Image):
             raise TypeError("img should be PIL.Image.Image. Got {}".format(type(img)))
 
@@ -95,7 +95,7 @@ class RandomizeBackgroundGraytone(torch.nn.Module):
         color = self.rng.integers(int(self.min * 255), int(self.max * 255))
         np_x = np.where(mask == True, color, (np_x * 255).astype('uint8'))
         return Image.fromarray(np_x)
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = '[{},{},{}]'.format(self.cutoff, self.min, self.max)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
@@ -105,7 +105,7 @@ class RandomizeBackgroundRGBNoise(torch.nn.Module):
         super().__init__()
         self.rng = np.random.default_rng()
         self.cutoff = cutoff    
-    def forward(self, img: t.Union[Image.Image, torch.Tensor]):
+    def forward(self, img: Image.Image) -> Image.Image:
         if not isinstance(img, Image.Image):
             raise TypeError("img should be PIL.Image.Image. Got {}".format(type(img)))
 
@@ -117,7 +117,7 @@ class RandomizeBackgroundRGBNoise(torch.nn.Module):
         np_x = np.where(mask == True, new_bg, np_x)
         np_x = (np_x * 255).astype('uint8')
         return Image.fromarray(np_x)
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = '[{}]'.format(self.cutoff)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 #TODO allow holes to be filled with noise or perhaps solid colors?
@@ -125,7 +125,7 @@ class RandomizeBackgroundRGBNoise(torch.nn.Module):
 class CoarseDropout(torch.nn.Module):
     def __init__(self,  min_holes: int = 0, max_holes:int = 10, 
                         min_height: int = 5, max_height: int = 10, 
-                        min_width:int = 5, max_width: int = 10):
+                        min_width:int = 5, max_width: int = 10) -> None:
         super().__init__()
         self.rng = np.random.default_rng()
         self.min_holes = min_holes
@@ -135,7 +135,7 @@ class CoarseDropout(torch.nn.Module):
         self.min_height = min_height
         self.min_width = min_width
 
-    def forward(self, img: t.Union[Image.Image, torch.Tensor]):
+    def forward(self, img: Image.Image) -> Image.Image:
         if not isinstance(img, Image.Image):
             raise TypeError("img should be PIL.Image.Image. Got {}".format(type(img)))
 
@@ -151,71 +151,73 @@ class CoarseDropout(torch.nn.Module):
             mask[y:y+height,x:x+width,:] = 0
         np_x = (mask * np_x).astype('uint8')
         return Image.fromarray(np_x)
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = '[{},{},{},{},{},{}]'.format(self.min_holes, self.max_holes, self.min_height, self.max_height, self.min_width, self.max_width)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
 #wrapper classes to load json representations of torchvision transforms. probably exists a smarter way, but im doing it
 class RandomVerticalFlip(torch.nn.Module):
-    def __init__(self, p=0.5):
+    def __init__(self, p: float=0.5) -> None:
         super().__init__()
         self.transform = torchvision.transforms.RandomVerticalFlip(p)
         self.p = p
-    def forward(self, x):
+
+    def forward(self, x: t.Union[Image.Image, torch.Tensor]) -> t.Union[Image.Image, torch.Tensor]:
         return self.transform(x)
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = '[{}]'.format(self.p)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
 class RandomRotation(torch.nn.Module):
-    def __init__(self, degrees=(0,0), fill=255):
+    def __init__(self, degrees : t.Tuple[float, float] =(0,0), fill: float =255):
         super().__init__()
         self.transform = torchvision.transforms.RandomRotation(degrees, functional.InterpolationMode.NEAREST, False, None, fill, None)
         self.degrees = degrees
         self.fill = fill
-    def forward(self, x):
+
+    def forward(self, x: t.Union[Image.Image, torch.Tensor]) -> t.Union[Image.Image, torch.Tensor]:
         return self.transform(x)
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = '[[{},{}],{}]'.format(self.degrees[0], self.degrees[1], self.fill)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
 class Resize(torch.nn.Module):
-    def __init__(self, size=(200,200)):
+    def __init__(self, size : t.Tuple[int, int]=(200,200)) -> None:
         super().__init__()
         self.transform = torchvision.transforms.Resize(size, functional.InterpolationMode.BILINEAR, None, None)
         self.size = size
-    def forward(self, x):
+
+    def forward(self, x: t.Union[Image.Image, torch.Tensor]) -> t.Union[Image.Image, torch.Tensor]:
         return self.transform(x)
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = '[[{},{}]]'.format(self.size[0], self.size[1])
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
 class ToTensor:
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.transform = torchvision.transforms.ToTensor()
-    def __call__(self, x):
+    def __call__(self, x : Image.Image) -> torch.Tensor:
         return functional.to_tensor(x)
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = '[]'
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
 class Normalize(torch.nn.Module):
-    def __init__(self, mean, std, inplace=False):
+    def __init__(self, mean: t.List[float], std: t.List[float], inplace : bool =False) -> None:
         super().__init__()
         self.transform = torchvision.transforms.Normalize(mean, std, inplace)
         self.mean = mean
         self.std = std
         self.inplace = inplace
-    def forward(self, x):
+    def forward(self, x : torch.Tensor) -> torch.Tensor: 
         return self.transform(x)
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = '[{}, {}]'.format(str(list(self.mean)), str(list(self.std)))
         return '{'+'"{}":'.format(self.__class__.__name__) +''+'{}'.format(args) + '}'
 
 
-
-def string_to_class(transform_dict: dict):
+def string_to_class(transform_dict: t.Dict[str, t.Any]) -> t.Union[torch.nn.Module, ToTensor]:
     [(key, value)] = list(transform_dict.items())
     if key == 'RandomVerticalFlip':
         retval = RandomVerticalFlip(*value)
