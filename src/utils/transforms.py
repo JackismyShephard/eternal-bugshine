@@ -201,8 +201,8 @@ class CoarseDropout(torch.nn.Module):
         np_dropout = (np_dropout * 255).astype('uint8')
         return Image.fromarray(np_dropout)
     def __repr__(self) -> str:
-        args = '[{},{},{},{},{},{}, "{}"]'.format(self.min_holes, self.max_holes, 
-        self.min_height, self.max_height, self.min_width, self.max_width, self.fill_type)
+        args = '[{},{},{},{},{},{}]'.format(self.min_holes, self.max_holes, 
+        self.min_height, self.max_height, self.min_width, self.max_width)
         return '{"'+self.__class__.__name__ +'":'+'{}'.format(args) + '}'
 
 #wrapper classes to load json representations of torchvision transforms. probably exists a smarter way, but im doing it
