@@ -38,17 +38,21 @@ class DreamConfig(t.TypedDict):
     kernel_size:        int
     smooth_coef:        float
     clamp_type:         t.Literal['standardize', 'unit', 'neg-unit']
+
     show:               bool
     figsize:            t.Tuple[int, int]
     save_interval:      int
     dpi:                int
+
     output_img_path:    t.Optional[str]
+    output_img_ext:     IMG_EXT
     img_overwrite:      bool
     video_path:         t.Optional[str]
-    video_overwrite:    bool
-    output_path_info:   bool
-    output_img_ext:     IMG_EXT
     video_ext:          IMG_EXT
+    video_overwrite:    bool
+    add_path_info:      bool
+
+
 
 class ModelConfig(t.TypedDict):
     """Holds information used when loading a model"""
@@ -140,8 +144,8 @@ class PlotConfig(t.TypedDict):
     save_figure:                bool
     save_subfigures:            bool
     save_padding:               float
-    save_extension:             str   
-    save_copy_png:              bool
+    save_suffix:                str 
+    save_ext:                   IMG_EXT
 
     # these two might need to be some plt type instead
     param_linestyle:            str
