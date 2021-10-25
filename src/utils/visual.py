@@ -1,9 +1,17 @@
+
+
+# used for image rendering
+from IPython.display import display
+import io
+from ipywidgets import widgets
+
 import matplotlib.pyplot as plt
 import matplotlib.transforms as plt_transform
 import matplotlib.colors as mcolors
-import imageio
+
 import numpy as np
 import cv2 as cv
+import imageio
 from PIL import Image
 
 import torch
@@ -15,23 +23,15 @@ from skimage.util import random_noise
 import typing as t
 from numpy import float32, typing as npt
 
-# used for image rendering
-import io
-from ipywidgets import widgets
-
 from .config import BEETLENET_MEAN, BEETLENET_STD, DEVICE
 from .custom_types import PlotConfig
 
-
-def plot_metrics(plot_config: PlotConfig, x, metrics, save_path=None):
+def plot_metrics(plot_config: PlotConfig, x : npt.NDArray[t.Any], metrics : npt.NDArray[t.Any], 
+                        save_path : t.Optional[str] =None) -> None:
     fig, ax = plt.subplots(plot_config['fig_row'],plot_config['fig_column'],
                              figsize=(plot_config['size_w'],plot_config['size_h']))
 
     titles = plot_config['titles']
-    y_label = plot_config['y_label']
-
-    if plot_config['use_title_label']:
-        y_label = titles
 
     # list of colors to make the metric and the average the same color
     colors = list(mcolors.TABLEAU_COLORS)
@@ -49,7 +49,10 @@ def plot_metrics(plot_config: PlotConfig, x, metrics, save_path=None):
                             linestyle=plot_config['param_linestyle'], alpha=plot_config['param_alpha'])
         
             if plot_config['show_rolling_avg']:
-                ax_container[i].plot(x, metrics[i,j*step + 1], color = colors[j%len(colors)], 
+                if plot_config['rolling_avg_label'] is None:
+                    raise RuntimeError('Trying to plot average metrics but no corresponding label was given')
+                else:
+                    ax_container[i].plot(x, metrics[i,j*step + 1], color = colors[j%len(colors)], 
                                 label = plot_config['label'][j] + ' ' + plot_config['rolling_avg_label'],
                                 linestyle=plot_config['average_linestyle'])
 
@@ -65,7 +68,9 @@ def plot_metrics(plot_config: PlotConfig, x, metrics, save_path=None):
         
     plt.tight_layout()
     if plot_config['save_figure']:
-        if plot_config['save_subfigures']:
+        if save_path is None:
+            raise RuntimeError('Trying to save figure but no save path was given')
+        elif plot_config['save_subfigures']:
             for i in range(ax_container.shape[0]):
                 index_y = i // plot_config['fig_column']
                 index_x = i % plot_config['fig_column']
@@ -76,18 +81,12 @@ def plot_metrics(plot_config: PlotConfig, x, metrics, save_path=None):
                 area = plt_transform.Bbox([ [index_x*sub_w,index_y*sub_h],
                                         [(index_x+1)*sub_w,(index_y+1)*sub_h]])
 
-                file_path = save_path + '_' + titles[i].lower() + '_' + plot_config['save_extension']
-                fig.savefig(file_path + '.pdf',  bbox_inches=area,
-                            facecolor='w', dpi=plot_config['save_dpi'])
-                if plot_config['save_copy_png']:
-                    fig.savefig(file_path + '.png',  bbox_inches=area,
+                file_path = save_path + '_' + titles[i].lower() + '_' + plot_config['save_suffix']
+                fig.savefig(file_path + plot_config['save_ext'],  bbox_inches=area,
                             facecolor='w', dpi=plot_config['save_dpi'])
         else:
-            file_path = save_path + '_' + plot_config['save_extension']
-            fig.savefig(file_path + '.pdf',  bbox_inches='tight',
-                        facecolor='w', dpi=plot_config['save_dpi'])
-            if plot_config['save_copy_png']:
-                fig.savefig(file_path + '.png',  bbox_inches='tight',
+            file_path = save_path + '_' + plot_config['save_suffix']
+            fig.savefig(file_path + plot_config['save_ext'],  bbox_inches='tight',
                         facecolor='w', dpi=plot_config['save_dpi'])
 
 
@@ -113,8 +112,6 @@ def reshape_image(img: npt.NDArray[t.Any], shape: t.Union[int, t.Tuple[int, int]
     return new_img
 
 
-
-# QUESTION why are we using mode = 'reflect'?
 def get_noise_image(type: t.Literal['uniform', 'gaussian'], shape: t.Union[int, t.Tuple[int, int]],
                     correlation: t.Optional[str] = None, sigma=1.0, scale = 1.0, 
                     low = 0.0, high = 1.0, loc = 0.0) -> npt.NDArray[t.Any]:
@@ -179,6 +176,7 @@ def random_shift(tensor : torch.Tensor, h_shift : int, w_shift : int,
 def show_img(img : npt.NDArray[t.Any], title: t.Optional[str] = None, save_path : t.Optional[str]=None, 
                 dpi : t.Union[float]  =200, figsize : t.Tuple[float, float]=(7, 7), 
                 show_axis : str ='on', close : bool =False) -> None:
+    '''This is a utility function for displaying numpy images with matplotlib. Currently not used as widgets are better'''
     plt.figure(figsize=figsize)
     plt.imshow(img)
     plt.axis(show_axis)
@@ -197,11 +195,14 @@ def save_img(img : npt.NDArray[t.Any], path : str) -> None:
 
 def save_video(path : str, images: t.List[npt.NDArray[t.Any]], shape: t.Union[int, t.Tuple[int, int]], quality : int = 7, 
                 fps: int = 24, macro_block_size :int  = 1) -> None:
+    '''Creates a video from a list of images. The type of video format is inferred from the "path" parameter. The "shape" parameter
+        defines the output size of the video. The parameter "quality" controls the quality and thereby also the size of the created video. With quality = 7 files of size around 1MB are created. '''
     outputdata = np.array([reshape_image(img, shape) for img in images])
     imageio.mimwrite(path, outputdata, quality=quality,
                      macro_block_size=macro_block_size, fps=fps)
 
 def save_video2(path, images: t.List[npt.NDArray[t.Any]], shape: t.Union[int, t.Tuple[int, int]], fps: int = 24) -> None:
+    '''This is an attempt at saving mp4 files using opencv. Currently not working.'''
     reshaped_imgs = [cv.cvtColor(reshape_image(
         img, shape), cv.COLOR_RGB2BGR) for img in images]
     (h, w, _) = reshaped_imgs[0].shape
@@ -213,6 +214,7 @@ def save_video2(path, images: t.List[npt.NDArray[t.Any]], shape: t.Union[int, t.
     out.release()
 
 def save_video3(path: str, images: t.List[npt.NDArray[t.Any]], shape: t.Union[int, t.Tuple[int, int]]) -> None:
+    '''This is the old model for saving videos as gif using PIL. Creates very large files.'''
     imgs = [Image.fromarray(reshape_image(img, shape)) for img in images]
     imgs[0].save(path, save_all=True, append_images=imgs[1:], loop=0)
 
@@ -224,19 +226,17 @@ class Rendering():
         Class for rendering dreamt images.
     """
 
-
-    def __init__(self, shape=(200,400), scale = 2):
+    def __init__(self, shape : t.Tuple[int, int]=(200,400), scale :int = 2) -> None:
         self.format = 'png'
         h, w = shape
         start_image = np.full((h,w,3), 255).astype(np.uint8)
         image_stream = self.compress_to_bytes(start_image)
 
         self.widget = widgets.Image(value = image_stream, width=w*scale, height=h*scale)
-        # QUESTION where is display loaded? It should be in this module.
         display(self.widget) 
 
     # To display the images, they need to be converted to a stream of bytes
-    def compress_to_bytes(self, data):
+    def compress_to_bytes(self, data : npt.NDArray) -> bytes:
         if isinstance(data, torch.Tensor):
             data = data.cpu().detach().numpy()
         """
@@ -248,7 +248,7 @@ class Rendering():
     
         return buff.getvalue()
 
-    def update(self, image):
+    def update(self, image : npt.NDArray) -> None:
         stream = self.compress_to_bytes(image)
         self.widget.value = stream
 
