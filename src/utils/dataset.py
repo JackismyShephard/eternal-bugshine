@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 import cv2 as cv
 import pandas as pd
+from IPython.display import display
 
 from sklearn.model_selection import train_test_split
 
