@@ -61,7 +61,7 @@ DREAM_CONFIG: DreamConfig = {
     'gauss_filter' : None,
     'shift_size': 32,
     'num_iters': 10,
-    'lr': 0.09,
+    'lr': 0.05,
     'loss_type': 'norm',
     'loss_red': 'mean',
     'norm_type': 'standardize',
@@ -135,6 +135,13 @@ RESNET34_FULL: ModelConfig = {
     'model_name':           'resnet34_fullytrained',
     'model_architecture':   'resnet34',
     'pretrained':           True,
+    'device':               DEVICE
+}
+
+RESNET34_FULL_WHITE: ModelConfig = {
+    'model_name':           'resnet34_fullytrained_white',
+    'model_architecture':   'resnet34',
+    'pretrained':           False,
     'device':               DEVICE
 }
 
