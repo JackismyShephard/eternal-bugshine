@@ -269,6 +269,10 @@ JACKISET = get_new_config(JACKI_PARAM, BEETLE_DATASET)
 
 def add_info_to_path(path: str, info: t.Optional[str], new_ext: t.Optional[IMG_EXT] = None, 
                         overwrite: bool = False) -> str:
+    '''Adds new information to path string. Main information to be appended is given by info.
+       If new_ext is not None then any current file extension is replaced by it. If overwrite is False
+       (Default) then an integer is suffixed to the resulting path string (before its extension) in such
+       a way that the resulting string identifies a new file in the system'''
 
     (root, old_ext) = os.path.splitext(path)
     if new_ext is not None:
