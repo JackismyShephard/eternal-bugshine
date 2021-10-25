@@ -51,6 +51,7 @@ DREAM_CONFIG: DreamConfig = {
     'std': BEETLENET_STD,
     'input_img_path': None,
     'target_shape': 600,
+    
     'noise': None,
      'noise_scale' : 1.0,
     'correlation' : None,
@@ -74,13 +75,15 @@ DREAM_CONFIG: DreamConfig = {
     'figsize': (15, 15),
     'save_interval': 1,
     'dpi': 200,
+
     'output_img_path': None,
+    'output_img_ext': '.jpg',
     'img_overwrite' : False,
     'video_path': None,
+    'video_ext': '.mp4',
     'video_overwrite' : False,
-    'output_path_info': True,
-    'output_img_ext' : '.jpg',
-    'video_ext' : '.mp4'
+    'add_path_info': True
+    
 }
 
 BEETLE_DATASET: DatasetConfig = {
@@ -194,8 +197,8 @@ DEFAULT_PLOTTING: PlotConfig = {
     'save_figure':          True,
     'save_subfigures':      True,
     'save_padding':         0,
-    'save_extension':       'comparison',
-    'save_copy_png':        True,
+    'save_suffix':       'comparison',
+    'save_ext':          '.png',
     'param_linestyle':      'solid',
     'average_linestyle':    'dashed',
     'param_alpha':          0.5,
