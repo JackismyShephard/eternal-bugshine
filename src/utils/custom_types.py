@@ -8,7 +8,7 @@ import torch
 from .transforms import ToTensor
 
 
-IMG_EXT= t.Literal['.png', '.jpg', '.pdf', '.gif']
+IMG_EXT= t.Literal['.png', '.jpg', '.pdf', '.gif', '.mp4']
 
 TARGET_DICT= t.Dict[str,t.Union[t.Tuple[int, int], t.List[int], int, None]]
 
@@ -47,6 +47,8 @@ class DreamConfig(t.TypedDict):
     video_path:         t.Optional[str]
     video_overwrite:    bool
     output_path_info:   bool
+    output_img_ext:     IMG_EXT
+    video_ext:          IMG_EXT
 
 class ModelConfig(t.TypedDict):
     """Holds information used when loading a model"""
