@@ -226,9 +226,12 @@ class Rendering():
         Class for rendering dreamt images.
     """
 
-    def __init__(self, shape : t.Tuple[int, int]=(200,400), scale :int = 2) -> None:
+    def __init__(self, shape : t.Union[t.Tuple[int, int], int]=(200,400), scale :int = 2) -> None:
         self.format = 'png'
-        h, w = shape
+        if isinstance(shape, int):
+            h, w =  (shape, shape)
+        else:
+            h, w = shape
         start_image = np.full((h,w,3), 255).astype(np.uint8)
         image_stream = self.compress_to_bytes(start_image)
 
@@ -236,7 +239,7 @@ class Rendering():
         display(self.widget) 
 
     # To display the images, they need to be converted to a stream of bytes
-    def compress_to_bytes(self, data : npt.NDArray) -> bytes:
+    def compress_to_bytes(self, data : npt.NDArray[t.Any]) -> bytes:
         if isinstance(data, torch.Tensor):
             data = data.cpu().detach().numpy()
         """
@@ -248,7 +251,7 @@ class Rendering():
     
         return buff.getvalue()
 
-    def update(self, image : npt.NDArray) -> None:
+    def update(self, image : npt.NDArray[t.Any]) -> None:
         stream = self.compress_to_bytes(image)
         self.widget.value = stream
 
