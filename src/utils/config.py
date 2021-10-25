@@ -287,9 +287,9 @@ def add_info_to_path(path: str, info: t.Optional[str], new_ext: t.Optional[IMG_E
         return root + old_ext
     else:
         i = 0
-        while os.path.exists(root + '_repeat=' + str(i) + old_ext):
+        while os.path.exists(root + '_' + str(i) + old_ext):
             i += 1
-        return (root + '_repeat=' + str(i) + old_ext)
+        return (root  + '_' + str(i) + old_ext)
 
 
 def save(path :str, model_config: ModelConfig, dataset_config: DatasetConfig, 

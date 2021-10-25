@@ -38,7 +38,10 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
     input_img = (input_img - dream_config['mean']) / dream_config['std']
     output_images = dreamspace(input_img, model, dream_config, model_config['device'])
     if dream_config['add_path_info']:
-        path_info = '_model=' + model_config['model_name'] + '_layer=' + str(dream_config['target_dict'])
+        path_info = model_config['model_name']
+        for (layer, idxs) in dream_config['target_dict'].items():
+            path_info =  path_info + '_' + layer + '_' + str(idxs)
+
     else:
         path_info = None
     if dream_config['output_img_path'] is not None:
