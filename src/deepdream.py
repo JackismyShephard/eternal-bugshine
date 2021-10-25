@@ -42,13 +42,13 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
         output_img_info = None
     if dream_config['output_img_path'] is not None:
         path = add_info_to_path(dream_config['output_img_path'], 
-            output_img_info, dream_config['img_overwrite'])
+            output_img_info, dream_config['output_img_ext'], dream_config['img_overwrite'])
         save(path, model_config, dataset_config, training_config,  dream_config = dream_config)
         save_img(output_images[-1], path)
 
     if dream_config['video_path'] is not None:
-        path = add_info_to_path(
-            dream_config['video_path'], output_img_info, dream_config['video_overwrite'])
+        path = add_info_to_path(dream_config['video_path'], output_img_info, 
+                                    dream_config['video_ext'], dream_config['video_overwrite'])
         save(path, model_config, dataset_config, training_config,dream_config = dream_config)
         save_video(path, output_images, dream_config['target_shape'])
     
