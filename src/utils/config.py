@@ -34,13 +34,16 @@ DEFAULT_NUM_WORKERS : int = mp.cpu_count()//2
 
 DEFAULT_OUTPUT_PATH : str = './output/' + getpass.getuser() + '/'
 Path(DEFAULT_OUTPUT_PATH).mkdir(parents=True, exist_ok=True)
+DEFAULT_IMG_PATH : str = DEFAULT_OUTPUT_PATH + 'figures/'
 Path(DEFAULT_OUTPUT_PATH + 'figures').mkdir(parents=True, exist_ok=True)
+DEFAULT_VIDEO_PATH: str = DEFAULT_OUTPUT_PATH + 'videos/'
 Path(DEFAULT_OUTPUT_PATH + 'videos').mkdir(parents=True, exist_ok=True)
+
 Path(DEFAULT_OUTPUT_PATH + 'models').mkdir(parents=True, exist_ok=True)
-Path('models').mkdir(parents=True, exist_ok=True)
 
 DEFAULT_MODEL_PATH : str = 'models/'
 DEFAULT_METRICS_PATH : str = 'models/'
+Path('models').mkdir(parents=True, exist_ok=True)
 
 DREAM_CONFIG: DreamConfig = {
     'target_dict': {'fc': None}, #None = whole layer, otherwise specify index as tuple (y,x). 
@@ -75,7 +78,9 @@ DREAM_CONFIG: DreamConfig = {
     'img_overwrite' : False,
     'video_path': None,
     'video_overwrite' : False,
-    'output_path_info': True
+    'output_path_info': True,
+    'output_img_ext' : '.jpg',
+    'video_ext' : '.mp4'
 }
 
 BEETLE_DATASET: DatasetConfig = {
@@ -262,28 +267,21 @@ JACKI_PARAM = {
 JACKISET = get_new_config(JACKI_PARAM, BEETLE_DATASET)
 
 
-def extend_path(path : str, overwrite : bool =False) -> str:
-    if overwrite:
-        return path
-    else:
-        (root, ext) = os.path.splitext(path)
-        i = 0
-        while os.path.exists(root + str(i) + ext):
-            i += 1
-        return (root + str(i) + ext)
+def add_info_to_path(path: str, info: t.Optional[str], new_ext: t.Optional[IMG_EXT] = None, 
+                        overwrite: bool = False) -> str:
 
-
-def add_info_to_path(path: str, info : t.Optional[str], overwrite: bool = False) -> str:
-    (root, ext) = os.path.splitext(path)
+    (root, old_ext) = os.path.splitext(path)
+    if new_ext is not None:
+        old_ext = new_ext
     if info is not None:
         root = root + info
     if overwrite:
-        return root + ext
+        return root + old_ext
     else:
         i = 0
-        while os.path.exists(root + '_repeat=' + str(i) + ext):
+        while os.path.exists(root + '_repeat=' + str(i) + old_ext):
             i += 1
-        return (root + '_repeat=' + str(i) + ext)
+        return (root + '_repeat=' + str(i) + old_ext)
 
 
 def save(path :str, model_config: ModelConfig, dataset_config: DatasetConfig, 
