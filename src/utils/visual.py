@@ -239,7 +239,7 @@ class Rendering():
         display(self.widget) 
 
     # To display the images, they need to be converted to a stream of bytes
-    def compress_to_bytes(self, data : npt.NDArray[t.Any]) -> bytes:
+    def compress_to_bytes(self, data : t.Union[npt.NDArray[t.Any], torch.Tensor]) -> bytes:
         if isinstance(data, torch.Tensor):
             data = data.cpu().detach().numpy()
         """
