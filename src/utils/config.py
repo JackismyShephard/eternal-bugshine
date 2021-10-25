@@ -68,7 +68,8 @@ DREAM_CONFIG: DreamConfig = {
     'eps': 10e-8,
     'smooth': True, 
     'kernel_size': 9,
-    'smooth_coef': 0.5,
+    'smooth_const': 0.5,
+    'smooth_factors': [1, 2, 5],
     'clamp_type': 'standardize',
     
     'show': False,
@@ -260,7 +261,7 @@ JACKI_PARAM = {
         CoarseDropout(min_holes =5, max_holes =15,
                       min_height =20, max_height =40,
                       min_width =20, max_width =40,
-                      fill_type = 'red'),
+                      fill_type = None),
         Resize(BEETLENET_AVERAGE_SHAPE),
         ToTensor(),
         Normalize(BEETLENET_MEAN, BEETLENET_STD)

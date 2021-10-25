@@ -1,4 +1,4 @@
-from IPython.display import clear_output
+
 
 import numbers
 import math
@@ -9,6 +9,7 @@ import cv2 as cv
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.transforms.functional as TF
 
 from .utils.config import add_info_to_path, save
 from .utils.custom_types import *
@@ -132,15 +133,9 @@ def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, iter : int,
     loss.backward()
     grad = tensor.grad.data
     ### gaussian smoothing
-    
-    if dream_config['smooth'] == True:
-        sigma = ((iter + 1) / dream_config['num_iters']
-                 ) * 2.0 + dream_config['smooth_coef']
-        smooth_grad = CascadeGaussianSmoothing(
-            kernel_size=dream_config['kernel_size'], sigma=sigma,
-            device=device)(grad)
-    else:
-        smooth_grad = grad
+    sigma = ((iter + 1) / dream_config['num_iters']) * 2.0 + dream_config['smooth_const']
+    smooth_grad = gradient_smoothing(grad, dream_config['kernel_size'], sigma, dream_config['smooth_factors'])
+    #smooth_grad = CascadeGaussianSmoothing(kernel_size=dream_config['kernel_size'], sigma=sigma,device=device)(grad)
     ### normalization of gradient
     g_std = torch.std(smooth_grad)
     g_mean = torch.mean(smooth_grad)
@@ -165,6 +160,24 @@ def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, iter : int,
         image_min, image_max = torch.tensor(-1), torch.tensor(1)
     tensor.data = torch.clip(tensor, image_min, image_max)
     return tensor
+
+
+def gradient_smoothing(tensor: torch.Tensor, kernel_size: t.Union[int, t.List[int]], 
+                  sigma: t.Union[t.List[float], float, None] = None, 
+                  coefs: t.List[float] = [1, 2, 5]) -> torch.Tensor:
+
+    if isinstance(kernel_size, int):
+        kernel_size = [kernel_size, kernel_size]
+    if isinstance(sigma, float):
+        sigma = [sigma, sigma]
+    blurred_imgs = []
+    for coef in coefs:
+        if sigma is None:
+            new_sigma = sigma
+        else:
+            new_sigma = [sigma[0] * coef, sigma[1] * coef]
+        blurred_imgs.append(TF.gaussian_blur(tensor, kernel_size, new_sigma))
+    return torch.stack(blurred_imgs).mean(dim = 0)
 
 class CascadeGaussianSmoothing(nn.Module):
     """

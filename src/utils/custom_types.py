@@ -36,7 +36,8 @@ class DreamConfig(t.TypedDict):
     eps:                float
     smooth:             bool
     kernel_size:        int
-    smooth_coef:        float
+    smooth_const:       float
+    smooth_factors:     t.List[float]
     clamp_type:         t.Literal['standardize', 'unit', 'neg-unit']
 
     show:               bool
