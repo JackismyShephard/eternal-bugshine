@@ -36,18 +36,18 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
         raise RuntimeError('img, input_img_path and noise are all None')
     input_img = (input_img - dream_config['mean']) / dream_config['std']
     output_images = dreamspace(input_img, model, dream_config, model_config['device'])
-    if dream_config['output_path_info']:
-        output_img_info = '_model=' + model_config['model_name'] + '_layer=' + str(dream_config['target_dict'])
+    if dream_config['add_path_info']:
+        path_info = '_model=' + model_config['model_name'] + '_layer=' + str(dream_config['target_dict'])
     else:
-        output_img_info = None
+        path_info = None
     if dream_config['output_img_path'] is not None:
         path = add_info_to_path(dream_config['output_img_path'], 
-            output_img_info, dream_config['output_img_ext'], dream_config['img_overwrite'])
+            path_info, dream_config['output_img_ext'], dream_config['img_overwrite'])
         save(path, model_config, dataset_config, training_config,  dream_config = dream_config)
         save_img(output_images[-1], path)
 
     if dream_config['video_path'] is not None:
-        path = add_info_to_path(dream_config['video_path'], output_img_info, 
+        path = add_info_to_path(dream_config['video_path'], path_info, 
                                     dream_config['video_ext'], dream_config['video_overwrite'])
         save(path, model_config, dataset_config, training_config,dream_config = dream_config)
         save_video(path, output_images, dream_config['target_shape'])
