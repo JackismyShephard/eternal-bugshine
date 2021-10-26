@@ -32,34 +32,34 @@
             "{\"RandomRotation\":[[-3,3],255]}",
             "{\"NotStupidRandomResizedCrop\":[0.95,1]}",
             "{\"RandomizeBackground\":[0.95]}",
-            "{\"CoarseDropout\":[0,15,15,40,15,40, \"black\"]}",
+            "{\"CoarseDropout\":[0,15,15,40,15,40]}",
             "{\"Resize\":[[224,448]]}",
             "{\"ToTensor\":[]}",
             "{\"Normalize\":[[0.8442649, 0.82529384, 0.82333773], [0.28980458, 0.32252666, 0.3240354]]}"
         ]
     },
     "train_info": {
-        "optim": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.9, 0.999)\n    eps: 0.1\n    initial_lr: 0.001\n    lr: 0.00036880183088056984\n    weight_decay: 0\n)",
+        "optim": "Adam (\nParameter Group 0\n    amsgrad: False\n    betas: (0.9, 0.999)\n    eps: 0.1\n    initial_lr: 0.001\n    lr: 0.00013601479046086037\n    weight_decay: 0\n)",
         "optim_args": {
             "lr": 0.001,
             "eps": 0.1
         },
         "criterion": "CrossEntropyLoss()",
-        "scheduler": "<torch.optim.lr_scheduler.ExponentialLR object at 0x7f41f81ae3a0>",
-        "early_stopping": "EarlyStopping(patience = 5, min_delta = 0, min_epochs = 200)",
+        "scheduler": "<torch.optim.lr_scheduler.ExponentialLR object at 0x7fa8a88eea00>",
+        "early_stopping": "EarlyStopping(patience = 5, min_delta = 0, min_epochs = 400)",
         "early_stopping_args": {
-            "min_epochs": 200,
+            "min_epochs": 400,
             "patience": 5,
             "min_delta": 0
         },
         "train_info": {
             "num_epochs": 400,
-            "best_model_epochs": 155,
+            "best_model_epochs": 176,
             "lr_decay": 0.995,
             "stopped_early": false,
             "test_acc": 0,
-            "best_model_val_acc": 0.9042089985486212,
-            "best_model_val_loss": 0.3583931960976522
+            "best_model_val_acc": 0.9114658925979681,
+            "best_model_val_loss": 0.33378748571924616
         },
         "metrics_path": "models/",
         "model_path": "models/"
