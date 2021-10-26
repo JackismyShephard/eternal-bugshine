@@ -180,7 +180,7 @@ DEFAULT_TRAINING: TrainingConfig = {
     'criterion':            None,
     'scheduler':            None,
     'early_stopping':       None,
-    'early_stopping_args':  {'min_epochs': 200, 'patience': 5, 'min_delta': 0},
+    'early_stopping_args':  {'min_epochs': 400, 'patience': 5, 'min_delta': 0},
     'train_info':           {'num_epochs': 400, 'best_model_epochs': 0, 
                              'lr_decay': 0.995, 'stopped_early': False,
                              'test_acc':   0, 'best_model_val_acc' : 0.0, 
@@ -249,6 +249,12 @@ RESNET34_FULL_GRAY: ModelConfig = {
     'device':               DEVICE
 }
 
+RESNET34_FULL_COARSE: ModelConfig = {
+    'model_name':           'resnet34_fullytrained_coarse_dropout',
+    'model_architecture':   'resnet34',
+    'pretrained':           False,
+    'device':               DEVICE
+}
 jens_params = {
     'data_augmentations':   [
                                 RandomVerticalFlip(),
@@ -260,8 +266,19 @@ jens_params = {
                                 Normalize(BEETLENET_MEAN, BEETLENET_STD)
                             ]
 }
-
-JENS_DATASET = get_new_config(jens_params, BEETLE_DATASET)
+jens_params2 = {
+    'data_augmentations':   [
+                                RandomVerticalFlip(),
+                                RandomRotation((-3,3), fill=255),
+                                NotStupidRandomResizedCrop(min_scale=0.95, max_scale=1),
+                                RandomizeBackground(cutoff=0.95),
+                                CoarseDropout(0, 15, 15, 40, 15, 40, 'black'),
+                                Resize(BEETLENET_AVERAGE_SHAPE),
+                                ToTensor(),
+                                Normalize(BEETLENET_MEAN, BEETLENET_STD)
+                            ]
+}
+JENS_DATASET = get_new_config(jens_params2, BEETLE_DATASET)
 
 JACKI_PARAM = {
     'data_augmentations':   [
