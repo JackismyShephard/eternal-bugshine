@@ -67,13 +67,15 @@ def scale_level(img: npt.NDArray[t.Any], start_size: t.Tuple, level: int,
     h, w = np.round(np.float32(np.array(start_size)) *
                     (ratio ** exponent)).astype(np.int32)
     if (h < img.shape[0]):
-        interpolation_mode = cv.INTER_AREA
+        #interpolation_mode = cv.INTER_AREA
+        interpolation_mode = cv.INTER_LINEAR_EXACT
         if gauss_filter is not None:
             img = cv.GaussianBlur(img, ksize = gauss_filter[0:2] ,
                                   sigmaX=gauss_filter[2], sigmaY=gauss_filter[3], borderType=cv.BORDER_REFLECT)
         scaled_img = cv.resize(img, (w, h), interpolation=interpolation_mode)
     else:
-        interpolation_mode = cv.INTER_CUBIC
+        interpolation_mode = cv.INTER_LINEAR_EXACT
+        #interpolation_mode = cv.INTER_CUBIC
         scaled_img = cv.resize(img, (w, h), interpolation=interpolation_mode)
         if gauss_filter is not None:
             scaled_img = cv.GaussianBlur(img, ksize=gauss_filter[0:2],

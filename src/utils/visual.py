@@ -103,8 +103,10 @@ def reshape_image(img: npt.NDArray[t.Any], shape: t.Union[int, t.Tuple[int, int]
         new_height, new_width = shape[:2]
 
     if new_height * new_width < current_height * current_width :
-        interpolation_mode = cv.INTER_AREA
+        #interpolation_mode =  cv.INTER_AREA
+        interpolation_mode = cv.INTER_LINEAR_EXACT
     else:
+        #interpolation_mode = cv.INTER_CUBIC
         interpolation_mode = cv.INTER_CUBIC
 
     new_img = cv.resize(img, (new_width, new_height),interpolation=interpolation_mode)
