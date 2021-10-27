@@ -155,7 +155,7 @@ def postprocess_image(img: npt.NDArray[t.Any], mean: npt.NDArray[np.float32] = B
 
 def image_to_tensor(img: npt.NDArray[t.Any], device: torch.device = DEVICE, 
                         requires_grad: bool = False) -> torch.Tensor:
-    tensor = transforms.ToTensor()(img).to(device).unsqueeze(0)
+    tensor = transforms.ToTensor()(img).type(torch.float32).to(device).unsqueeze(0)
     tensor.requires_grad = requires_grad
     return tensor
 
@@ -193,6 +193,8 @@ def show_img(img : npt.NDArray[t.Any], title: t.Optional[str] = None, save_path 
 
 def save_img(img : npt.NDArray[t.Any], path : str) -> None:
     cv.imwrite(path, img[:, :, ::-1])
+
+
 
 
 def save_video(path : str, images: t.List[npt.NDArray[t.Any]], shape: t.Union[int, t.Tuple[int, int]], quality : int = 7, 

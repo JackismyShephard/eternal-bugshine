@@ -4,12 +4,15 @@ import numbers
 import math
 
 import numpy as np
+import numpy.fft as fft
+
 import cv2 as cv
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms.functional as TF
+
 
 from .utils.config import add_info_to_path, save
 from .utils.custom_types import *
@@ -91,10 +94,15 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
     if dream_config['show'] == True:
         render = Rendering(dream_config['target_shape'])
 
-    for level in range(dream_config['levels']):
-        scaled_img = scale_level(img, start_size, level,
-                                    dream_config['ratio'], dream_config['levels'])
+    if dream_config['scale_type'] == 'scale_space':
+        scaled_img = scale_space(img, dream_config)
         scaled_tensor = image_to_tensor(scaled_img, device, requires_grad=True)
+
+    for level in range(dream_config['levels']):
+        if dream_config['scale_type'] == 'image_pyramid':
+            scaled_img = scale_level(img, start_size, level,
+                                    dream_config['ratio'], dream_config['levels'])
+            scaled_tensor = image_to_tensor(scaled_img, device, requires_grad=True)
 
         for i in range(dream_config['num_iters']):
             h_shift, w_shift = np.random.randint(-dream_config['shift_size'], dream_config['shift_size'] + 1, 2)
@@ -183,6 +191,43 @@ def gradient_smoothing(tensor: torch.Tensor, kernel_size: t.Union[int, t.List[in
             new_sigma = [sigma[0] * coef, sigma[1] * coef]
         blurred_imgs.append(TF.gaussian_blur(tensor, kernel_size, new_sigma))
     return torch.stack(blurred_imgs).mean(dim = 0)
+
+# ----Scale Space---- 
+ 
+def gaussain(x : np.int32, y : np.int32, sigma):
+    "2D gaussian function"
+    exponent = ((x)**2 + (y)**2) / (2.0 * sigma **2)
+    normalizer = 1.0 / (2.0 * np.pi * sigma **2)
+    return normalizer * np.exp(-exponent)
+
+def gaussian_kernel(h : np.int32, w : np.int32, sigma : np.float32):
+    "Creates a gaussian kernel of size (h, w)"
+    y = np.linspace(-h//2, h//2-1, h)
+    x = np.linspace(-w//2, w//2-1, w)
+    X, Y = np.meshgrid(x, y)
+    return gaussain(X, Y, sigma)
+
+def scale_space(img : npt.NDArray[np.float32], dream_config : DreamConfig):
+    "Applies gaussian smoothing to input image for each channel"
+
+    sigma = dream_config['ratio']
+
+    # no need to apply a gaussian with a sigma less than 1
+    if sigma < 1:
+        return img
+
+    h,w,c = img.shape
+    kernel = fft.fft2(gaussian_kernel(h,w, sigma))
+    ret = np.zeros(img.shape)
+
+    for i in range(c):
+        img_fft = fft.fft2(img[:,:,i].astype(np.float64))
+        ret[:,:,i] = fft.fftshift(fft.ifft2(img_fft * kernel).real)
+    
+    clip_min = (- dream_config['mean'])/dream_config['std']
+    clip_max = (1 - dream_config['mean'])/dream_config['std']
+
+    return np.clip(ret,clip_min,clip_max)
 
 class CascadeGaussianSmoothing(nn.Module):
     """

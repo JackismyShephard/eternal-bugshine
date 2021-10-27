@@ -83,8 +83,9 @@ DREAM_CONFIG: DreamConfig = {
     'video_path': None,
     'video_ext': '.mp4',
     'video_overwrite' : False,
-    'add_path_info': True
+    'add_path_info': True,
     
+    'scale_type': 'image_pyramid'
 }
 
 BEETLE_DATASET: DatasetConfig = {

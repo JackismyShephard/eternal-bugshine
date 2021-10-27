@@ -53,6 +53,8 @@ class DreamConfig(t.TypedDict):
     video_overwrite:    bool
     add_path_info:      bool
 
+    scale_type:        str
+
 
 
 class ModelConfig(t.TypedDict):
