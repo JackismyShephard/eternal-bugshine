@@ -96,14 +96,13 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
 
     if dream_config['scale_type'] == 'scale_space':
         scaled_img = scale_space(img, dream_config)
-        scaled_tensor = image_to_tensor(scaled_img, device, requires_grad=True)
+    else:
+        scaled_img = scale_level(img, start_size, 0,
+                                    dream_config['ratio'], dream_config['levels'])
+
+    scaled_tensor = image_to_tensor(scaled_img, device, requires_grad=True)
 
     for level in range(dream_config['levels']):
-        if dream_config['scale_type'] == 'image_pyramid':
-            scaled_img = scale_level(img, start_size, level,
-                                    dream_config['ratio'], dream_config['levels'])
-            scaled_tensor = image_to_tensor(scaled_img, device, requires_grad=True)
-
         for i in range(dream_config['num_iters']):
             h_shift, w_shift = np.random.randint(-dream_config['shift_size'], dream_config['shift_size'] + 1, 2)
             shifted_tensor = random_shift(scaled_tensor, h_shift, w_shift, requires_grad = True)
@@ -120,6 +119,16 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
                 output_images.append(output_image)
 
             scaled_tensor = deshifted_tensor
+        if level + 1 != dream_config['levels']:
+            if dream_config['scale_type'] == 'image_pyramid':
+                scaled_img = scale_level(img, start_size, level+1,
+                                        dream_config['ratio'], dream_config['levels'])
+                scaled_tensor = image_to_tensor(scaled_img, device, requires_grad=True)
+            if dream_config['apply_sharpening']:
+                if dream_config['sharpening_type'] == 'laplacian':
+                    current_img = apply_laplacian(scaled_tensor, dream_config)
+                    scaled_tensor = image_to_tensor(current_img, device, requires_grad=True)
+            
     return output_images
 
 def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, iter : int, 
@@ -197,7 +206,7 @@ def gradient_smoothing(tensor: torch.Tensor, kernel_size: t.Union[int, t.List[in
 def conv_per_channel(img : npt.NDArray[np.float32], kernel : npt.NDArray[np.float32], shift : bool = False):
     "Apply 2D convolution for each channel in the image"
     h,w,c = img.shape
-    fft_kernel = fft.fft2(kernel)
+    fft_kernel = fft.fft2(kernel, (h, w))
     ret = np.zeros(img.shape)
 
     for i in range(c):
@@ -205,7 +214,7 @@ def conv_per_channel(img : npt.NDArray[np.float32], kernel : npt.NDArray[np.floa
         if shift:
             ret[:,:,i] = fft.fftshift(fft.ifft2(img_fft * fft_kernel).real)
         else:
-            ret[:,:,i] = fft.ifft2(img_fft * kernel).real
+            ret[:,:,i] = fft.ifft2(img_fft * fft_kernel).real
 
     return ret
 
@@ -243,6 +252,29 @@ def scale_space(img : npt.NDArray[np.float32], dream_config : DreamConfig):
 
     return np.clip(ret,clip_min,clip_max)
 
+# ----Scale Space---- 
+
+def apply_laplacian(img, dream_config : DreamConfig):
+    "Apply laplacian sharpening to a tensor image"
+
+    # get the image from the gpu and convert to numpy image
+    current_img = tensor_to_image(img)
+
+    laplace_kernel = np.array([[-1,-1,-1], [-1,8,-1], [-1,-1,-1]])
+    laplace = conv_per_channel(current_img, laplace_kernel)
+
+    clip_min = (- dream_config['mean'])/dream_config['std']
+    clip_max = (1 - dream_config['mean'])/dream_config['std']
+
+    if dream_config['laplace_factor'] > 0:
+        factor = dream_config['laplace_factor'] / dream_config['ratio']
+    else:
+        factor = 1
+
+    return np.clip(current_img + laplace/factor, clip_min, clip_max)
+
+    
+    
 
 class CascadeGaussianSmoothing(nn.Module):
     """

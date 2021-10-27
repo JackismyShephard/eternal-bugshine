@@ -85,7 +85,10 @@ DREAM_CONFIG: DreamConfig = {
     'video_overwrite' : False,
     'add_path_info': True,
     
-    'scale_type': 'image_pyramid'
+    'scale_type': 'image_pyramid',
+    'apply_sharpening':   False,
+    'laplace_factor':     1.0,
+    'sharpening_type':    'laplacian'
 }
 
 BEETLE_DATASET: DatasetConfig = {

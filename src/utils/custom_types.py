@@ -53,7 +53,10 @@ class DreamConfig(t.TypedDict):
     video_overwrite:    bool
     add_path_info:      bool
 
-    scale_type:        str
+    scale_type:         str
+    apply_sharpening:   bool
+    laplace_factor:     float
+    sharpening_type:    t.Optional[str]
 
 
 
