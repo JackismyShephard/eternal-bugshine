@@ -69,7 +69,7 @@ DREAM_CONFIG: DreamConfig = {
     'smooth': True, 
     'kernel_size': 9,
     'smooth_const': 0.5,
-    'smooth_factors': [1, 2, 5],
+    'smooth_factors': [0.5, 1.0, 2.0],
     'clamp_type': 'standardize',
     
     'show': False,
