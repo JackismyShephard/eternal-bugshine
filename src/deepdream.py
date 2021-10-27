@@ -192,6 +192,23 @@ def gradient_smoothing(tensor: torch.Tensor, kernel_size: t.Union[int, t.List[in
         blurred_imgs.append(TF.gaussian_blur(tensor, kernel_size, new_sigma))
     return torch.stack(blurred_imgs).mean(dim = 0)
 
+
+
+def conv_per_channel(img : npt.NDArray[np.float32], kernel : npt.NDArray[np.float32], shift : bool = False):
+    "Apply 2D convolution for each channel in the image"
+    h,w,c = img.shape
+    fft_kernel = fft.fft2(kernel)
+    ret = np.zeros(img.shape)
+
+    for i in range(c):
+        img_fft = fft.fft2(img[:,:,i].astype(np.float32))
+        if shift:
+            ret[:,:,i] = fft.fftshift(fft.ifft2(img_fft * fft_kernel).real)
+        else:
+            ret[:,:,i] = fft.ifft2(img_fft * kernel).real
+
+    return ret
+
 # ----Scale Space---- 
  
 def gaussain(x : np.int32, y : np.int32, sigma):
@@ -210,24 +227,22 @@ def gaussian_kernel(h : np.int32, w : np.int32, sigma : np.float32):
 def scale_space(img : npt.NDArray[np.float32], dream_config : DreamConfig):
     "Applies gaussian smoothing to input image for each channel"
 
-    sigma = dream_config['ratio']
+    sigma = dream_config['ratio'] * dream_config['levels']
 
     # no need to apply a gaussian with a sigma less than 1
     if sigma < 1:
         return img
 
-    h,w,c = img.shape
-    kernel = fft.fft2(gaussian_kernel(h,w, sigma))
-    ret = np.zeros(img.shape)
+    h, w = img.shape[0:2]
+    kernel = gaussian_kernel(h,w, sigma)
 
-    for i in range(c):
-        img_fft = fft.fft2(img[:,:,i].astype(np.float64))
-        ret[:,:,i] = fft.fftshift(fft.ifft2(img_fft * kernel).real)
+    ret = conv_per_channel(img, kernel, shift=True)
     
     clip_min = (- dream_config['mean'])/dream_config['std']
     clip_max = (1 - dream_config['mean'])/dream_config['std']
 
     return np.clip(ret,clip_min,clip_max)
+
 
 class CascadeGaussianSmoothing(nn.Module):
     """
