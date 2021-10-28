@@ -89,7 +89,11 @@ DREAM_CONFIG: DreamConfig = {
     'apply_sharpening':   False,
     'laplace_factor':     5.0,
     'sharpening_type':    'laplacian',
-    'end_level':          0
+    'end_level':          0,
+
+    'iteration_mode':     'constant',
+    'lr_mode':            'constant'
+
 }
 
 BEETLE_DATASET: DatasetConfig = {

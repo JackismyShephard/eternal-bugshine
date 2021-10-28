@@ -28,8 +28,8 @@ class DreamConfig(t.TypedDict):
     levels:             int
     gauss_filter:       t.Optional[t.Tuple[int, int, float, float]]
     shift_size:         int
-    num_iters:          int
-    lr:                 float
+    num_iters:          t.Union[int, t.Tuple[int, float], t.List[int]]
+    lr:                 t.Union[float, t.Tuple[float, float], t.List[float]]
     loss_type:          t.Literal['norm', 'mean', 'MSE']
     loss_red:           t.Literal['mean', 'sum']
     norm_type:          t.Literal['standardize', 'abs_mean']
@@ -58,6 +58,10 @@ class DreamConfig(t.TypedDict):
     laplace_factor:     float
     sharpening_type:    t.Optional[str]
     end_level:          int
+
+    iteration_mode:     str
+    lr_mode:            str
+
 
 
 

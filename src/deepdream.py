@@ -95,6 +95,16 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
     
+    if dream_config['iteration_mode'] == 'ratio':
+        iter_exp = np.arange(dream_config['levels'])
+        start_iter, iter_ratio = dream_config['num_iters']
+        iters = ((iter_ratio ** iter_exp) * start_iter).astype(int)
+
+    elif dream_config['iteration_mode'] == 'custom':
+        iters = dream_config['num_iters']
+    else:
+        iters = [dream_config['num_iters']] * dream_config['levels']
+
     if dream_config['show'] == True:
         render = Rendering(dream_config['target_shape'])
 
@@ -107,10 +117,10 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
     scaled_tensor = image_to_tensor(scaled_img, device, requires_grad=True)
 
     for level in range(1, (dream_config['levels'] - dream_config['end_level'])+1):
-        for i in range(dream_config['num_iters']):
+        for i in range(iters[level-1]):
             h_shift, w_shift = np.random.randint(-dream_config['shift_size'], dream_config['shift_size'] + 1, 2)
             shifted_tensor = random_shift(scaled_tensor, h_shift, w_shift, requires_grad = True)
-            dreamt_tensor = dream_ascent(shifted_tensor, model, i, dream_config, device)
+            dreamt_tensor = dream_ascent(shifted_tensor, model, level-1, i, iters[level-1],  dream_config, device)
             deshifted_tensor = random_shift(dreamt_tensor, h_shift,
                                              w_shift, undo=True, requires_grad = True)
 
@@ -137,7 +147,7 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
                     scaled_tensor = image_to_tensor(current_img, device, requires_grad=True)
     return output_images
 
-def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, iter : int, 
+def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, level : int,  iter : int, num_iters : int,
                 dream_config : DreamConfig, device : torch.device) -> torch.Tensor:
     ## get activations
     _, activations = model(tensor, dream_config['target_dict'])
@@ -161,7 +171,7 @@ def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, iter : int,
     loss.backward()
     grad = tensor.grad.data
     ### gaussian smoothing
-    sigma = ((iter + 1) / dream_config['num_iters']) * 2.0 + dream_config['smooth_const']
+    sigma = ((iter + 1) / num_iters) * 2.0 + dream_config['smooth_const']
     smooth_grad = gradient_smoothing(grad, dream_config['kernel_size'], sigma, dream_config['smooth_factors'])
     #smooth_grad = CascadeGaussianSmoothing(kernel_size=dream_config['kernel_size'], sigma=sigma,device=device)(grad)
     ### normalization of gradient
@@ -173,8 +183,17 @@ def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, iter : int,
     else:
         smooth_grad /= torch.abs(g_mean + dream_config['eps'])
 
+
     ### gradient update ####
-    tensor.data += dream_config['lr'] * smooth_grad
+    if dream_config['lr_mode'] == 'custom':
+        lr = dream_config['lr'][level]
+    elif dream_config['lr_mode'] == 'ratio':
+        start_lr, lr_ratio = dream_config['lr']
+        lr = start_lr * lr_ratio ** level
+    else:
+        lr = dream_config['lr']
+
+    tensor.data += lr * smooth_grad
     tensor.grad.data.zero_()
     ### clamp gradient to avoid it diverging. vanishing/exploding gradient phenomenon?
     if dream_config['clamp_type'] == 'standardize':
@@ -283,7 +302,7 @@ def apply_laplacian(img : npt.NDArray[np.float32], dream_config : DreamConfig):
         factor = 1
 
     return np.clip(current_img + laplace/factor, clip_min, clip_max)
-import matplotlib.pyplot as plt
+
 def apply_DOG(img: torch.Tensor, original_img : npt.NDArray[np.float32], level : int, dream_config : DreamConfig):
     current_img = np.clip(tensor_to_image(img)* dream_config['std'] + dream_config['mean'],0,1)
     denormalized_img = original_img * dream_config['std'] + dream_config['mean']
