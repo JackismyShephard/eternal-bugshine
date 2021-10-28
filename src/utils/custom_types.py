@@ -57,6 +57,7 @@ class DreamConfig(t.TypedDict):
     apply_sharpening:   bool
     laplace_factor:     float
     sharpening_type:    t.Optional[str]
+    end_level:          int
 
 
 

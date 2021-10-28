@@ -64,11 +64,14 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
 #TODO figure out if rescaling leaves artifacts in output image
 def scale_level(img: npt.NDArray[t.Any], start_size: t.Tuple, level: int,
                 ratio: float = 1.8, levels: int = 4, 
-                gauss_filter : t.Optional[t.Tuple[int, int, float, float]] = None) -> npt.NDArray[t.Any]:
+                gauss_filter : t.Optional[t.Tuple[int, int, float, float]] = None, size : t.Optional[t.Tuple[int, int]] = None) -> npt.NDArray[t.Any]:
 
     exponent = level - levels + 1
     h, w = np.round(np.float32(np.array(start_size)) *
                     (ratio ** exponent)).astype(np.int32)
+    if size is not None:
+        h,w = size
+
     if (h < img.shape[0]):
         #interpolation_mode = cv.INTER_AREA
         interpolation_mode = cv.INTER_LINEAR_EXACT
@@ -88,6 +91,7 @@ def scale_level(img: npt.NDArray[t.Any], start_size: t.Tuple, level: int,
 
 def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module, 
                     dream_config : DreamConfig, device : torch.device) -> t.List[npt.NDArray[np.uint8]]:
+    original_img = img.copy()
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
     
@@ -95,14 +99,14 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
         render = Rendering(dream_config['target_shape'])
 
     if dream_config['scale_type'] == 'scale_space':
-        scaled_img = scale_space(img, dream_config)
+        scaled_img = scale_space(img, dream_config['levels'], dream_config)
     else:
         scaled_img = scale_level(img, start_size, 0,
                                     dream_config['ratio'], dream_config['levels'])
 
     scaled_tensor = image_to_tensor(scaled_img, device, requires_grad=True)
 
-    for level in range(dream_config['levels']):
+    for level in range(1, (dream_config['levels'] - dream_config['end_level'])+1):
         for i in range(dream_config['num_iters']):
             h_shift, w_shift = np.random.randint(-dream_config['shift_size'], dream_config['shift_size'] + 1, 2)
             shifted_tensor = random_shift(scaled_tensor, h_shift, w_shift, requires_grad = True)
@@ -119,16 +123,18 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
                 output_images.append(output_image)
 
             scaled_tensor = deshifted_tensor
-        if level + 1 != dream_config['levels']:
+        if level < (dream_config['levels'] - dream_config['end_level']):
             if dream_config['scale_type'] == 'image_pyramid':
-                scaled_img = scale_level(img, start_size, level+1,
+                scaled_img = scale_level(img, start_size, level,
                                         dream_config['ratio'], dream_config['levels'])
                 scaled_tensor = image_to_tensor(scaled_img, device, requires_grad=True)
             if dream_config['apply_sharpening']:
                 if dream_config['sharpening_type'] == 'laplacian':
                     current_img = apply_laplacian(scaled_tensor, dream_config)
                     scaled_tensor = image_to_tensor(current_img, device, requires_grad=True)
-            
+                else:
+                    current_img  = apply_DOG(scaled_tensor, original_img, level, dream_config)
+                    scaled_tensor = image_to_tensor(current_img, device, requires_grad=True)
     return output_images
 
 def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, iter : int, 
@@ -233,28 +239,33 @@ def gaussian_kernel(h : np.int32, w : np.int32, sigma : np.float32):
     X, Y = np.meshgrid(x, y)
     return gaussain(X, Y, sigma)
 
-def scale_space(img : npt.NDArray[np.float32], dream_config : DreamConfig):
+def scale_space(img : npt.NDArray[np.float32], level:int, dream_config : DreamConfig, model_clip: bool = True):
     "Applies gaussian smoothing to input image for each channel"
 
-    sigma = dream_config['ratio'] * dream_config['levels']
+    sigma = dream_config['ratio'] * level
+
+    clip_min = 0
+    clip_max = 1
+    if model_clip:
+        clip_min = (- dream_config['mean'])/dream_config['std']
+        clip_max = (1 - dream_config['mean'])/dream_config['std']
 
     # no need to apply a gaussian with a sigma less than 1
     if sigma < 1:
-        return img
+        return np.clip(img,clip_min,clip_max)
 
     h, w = img.shape[0:2]
     kernel = gaussian_kernel(h,w, sigma)
 
     ret = conv_per_channel(img, kernel, shift=True)
     
-    clip_min = (- dream_config['mean'])/dream_config['std']
-    clip_max = (1 - dream_config['mean'])/dream_config['std']
+
 
     return np.clip(ret,clip_min,clip_max)
 
 # ----Scale Space---- 
 
-def apply_laplacian(img, dream_config : DreamConfig):
+def apply_laplacian(img : npt.NDArray[np.float32], dream_config : DreamConfig):
     "Apply laplacian sharpening to a tensor image"
 
     # get the image from the gpu and convert to numpy image
@@ -272,8 +283,36 @@ def apply_laplacian(img, dream_config : DreamConfig):
         factor = 1
 
     return np.clip(current_img + laplace/factor, clip_min, clip_max)
+import matplotlib.pyplot as plt
+def apply_DOG(img: torch.Tensor, original_img : npt.NDArray[np.float32], level : int, dream_config : DreamConfig):
+    current_img = np.clip(tensor_to_image(img)* dream_config['std'] + dream_config['mean'],0,1)
+    denormalized_img = original_img * dream_config['std'] + dream_config['mean']
 
-    
+    difference = 0
+    if dream_config["scale_type"] == "image_pyramid":
+        start_size = original_img.shape[:-1]
+        current_size = current_img.shape[:-1]
+        
+        img_downscale = scale_level(denormalized_img, start_size, level-1,
+                                        dream_config['ratio'], dream_config['levels'])
+
+        img_downscale = scale_level(img_downscale, start_size, level,
+                                        dream_config['ratio'], dream_config['levels'], size = current_size)
+
+        img_current_scale = scale_level(denormalized_img, start_size, level,
+                                        dream_config['ratio'], dream_config['levels'], size = current_size)
+
+        difference = img_current_scale - img_downscale
+
+    if dream_config["scale_type"] == "scale_space":
+        low_scale = scale_space(denormalized_img, dream_config['levels'] - level, dream_config, False)
+        high_scale = scale_space(denormalized_img, dream_config['levels'] - (level+1), dream_config, False)
+
+        difference = high_scale - low_scale
+
+    ratio = np.abs(difference + 1)
+
+    return  ((current_img * ratio)-dream_config['mean'])/dream_config['std']                                 
     
 
 class CascadeGaussianSmoothing(nn.Module):

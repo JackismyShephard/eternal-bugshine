@@ -87,8 +87,9 @@ DREAM_CONFIG: DreamConfig = {
     
     'scale_type': 'image_pyramid',
     'apply_sharpening':   False,
-    'laplace_factor':     1.0,
-    'sharpening_type':    'laplacian'
+    'laplace_factor':     5.0,
+    'sharpening_type':    'laplacian',
+    'end_level':          0
 }
 
 BEETLE_DATASET: DatasetConfig = {
