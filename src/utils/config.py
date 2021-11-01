@@ -92,8 +92,13 @@ DREAM_CONFIG: DreamConfig = {
     'end_level':          0,
 
     'iteration_mode':     'constant',
-    'lr_mode':            'constant'
+    'lr_mode':            'constant',
+    'save_meta':           True,
 
+    'penalty':            False,
+    'penalty_loss_type':  'norm',
+    'penalty_function':   'relu',
+    'penalty_red':        'mean'
 }
 
 BEETLE_DATASET: DatasetConfig = {

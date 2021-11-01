@@ -43,23 +43,34 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
     if dream_config['add_path_info']:
         path_info = model_config['model_name']
         for (layer, idxs) in dream_config['target_dict'].items():
-            path_info =  path_info + '_' + layer + '_' + str(idxs)
+            path_info =  path_info + '_' + layer + '_' + add_zeros(idxs)
 
     else:
         path_info = None
     if dream_config['output_img_path'] is not None:
         path = add_info_to_path(dream_config['output_img_path'], 
             path_info, dream_config['output_img_ext'], dream_config['img_overwrite'])
-        save(path, model_config, dataset_config, training_config,  dream_config = dream_config)
+        if dream_config['save_meta']:
+            save(path, model_config, dataset_config, training_config,  dream_config = dream_config)
         save_img(output_images[-1], path)
 
     if dream_config['video_path'] is not None:
         path = add_info_to_path(dream_config['video_path'], path_info, 
                                     dream_config['video_ext'], dream_config['video_overwrite'])
-        save(path, model_config, dataset_config, training_config,dream_config = dream_config)
+        if dream_config['save_meta']:
+            save(path, model_config, dataset_config, training_config,dream_config = dream_config)
         save_video(path, output_images, dream_config['target_shape'])
     
     return output_images
+
+def add_zeros(idx):
+    ret = str(idx)
+    if len(ret) == 1:
+        return "00" + ret
+    elif len(ret) == 2:
+        return "0" + ret
+    else:
+        return ret
 
 #TODO figure out if rescaling leaves artifacts in output image
 def scale_level(img: npt.NDArray[t.Any], start_size: t.Tuple, level: int,
@@ -147,27 +158,56 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
                     scaled_tensor = image_to_tensor(current_img, device, requires_grad=True)
     return output_images
 
+def calculate_loss(tensor : torch.Tensor, loss_type : str = ""):
+    if loss_type == 'norm':
+        loss_part = torch.linalg.norm(tensor)
+    elif loss_type == 'mean':
+        loss_part = torch.mean(tensor)
+    else:
+        MSE = torch.nn.MSELoss(reduction='mean')
+        zeros = torch.zeros_like(tensor)
+        loss_part = MSE(tensor, zeros)
+    return loss_part
+
 def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, level : int,  iter : int, num_iters : int,
                 dream_config : DreamConfig, device : torch.device) -> torch.Tensor:
+      
+ 
     ## get activations
-    _, activations = model(tensor, dream_config['target_dict'])
-    ### calculate loss on desired layers
-    losses = []
-    for layer_activation in activations:
-        if dream_config['loss_type'] == 'norm':
-            loss_part = torch.linalg.norm(layer_activation)
-        elif dream_config['loss_type'] == 'mean':
-            loss_part = torch.mean(layer_activation)
-        else:
-            MSE = torch.nn.MSELoss(reduction='mean')
-            zeros = torch.zeros_like(layer_activation)
-            loss_part = MSE(layer_activation, zeros)
-        losses.append(loss_part)
+    _, (target_acts, remaining_acts) = model(tensor, dream_config['target_dict'], dream_config['penalty'])
+    losses_target = []
+    losses_remaining = []
+
+    ### calculate loss on target layers
+    for target_activation in target_acts:
+        losses_target.append(calculate_loss(torch.stack(target_activation), dream_config['loss_type']))
+
     if dream_config['loss_red'] == 'mean':
-        loss = torch.mean(torch.stack(losses))
+        loss_target = torch.mean(torch.stack(losses_target))
     else:
-        loss = torch.sum(torch.stack(losses))
+        loss_target = torch.sum(torch.stack(losses_target))
+
+
+    if dream_config['penalty']:
+        for remaining_activation in remaining_acts:
+            if dream_config['penalty_function'] == 'relu':
+                remaining_f = F.relu(torch.stack(remaining_activation))
+            else:
+                remaining_f = remaining_activation
+
+            losses_remaining.append(calculate_loss(remaining_f, dream_config['penalty_loss_type']))
+
+        if dream_config['penalty_red'] == 'mean':
+            loss_remaining = torch.mean(torch.stack(losses_remaining))
+        else:
+            loss_remaining = torch.sum(torch.stack(losses_remaining))
+
+        loss = loss_target - loss_remaining
+    else:
+        loss = loss_target
+
     # do backpropagation and get gradient
+
     loss.backward()
     grad = tensor.grad.data
     ### gaussian smoothing
@@ -305,7 +345,7 @@ def apply_laplacian(img : npt.NDArray[np.float32], dream_config : DreamConfig):
 
 def apply_DOG(img: torch.Tensor, original_img : npt.NDArray[np.float32], level : int, dream_config : DreamConfig):
     current_img = np.clip(tensor_to_image(img)* dream_config['std'] + dream_config['mean'],0,1)
-    denormalized_img = original_img * dream_config['std'] + dream_config['mean']
+    denormalized_img = np.clip(original_img * dream_config['std'] + dream_config['mean'], 0,1)
 
     difference = 0
     if dream_config["scale_type"] == "image_pyramid":

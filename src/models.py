@@ -88,20 +88,44 @@ class HookedModel(torch.nn.Module):
     #TODO in case we want to apply different weights to different activations, perhaps this should return a dictionary instead
     #TODO not sure if to('cpu') slows us down. is there a way to encapsulate the behavior of _get_activations without this?
 
-    def _get_activations(self, target_dict: TARGET_DICT) -> t.List[torch.Tensor]:
+    def _get_activations(self, target_dict: TARGET_DICT, penalty : bool = False) -> t.Tuple[t.List[torch.Tensor], t.List[torch.Tensor]]:
         """Clones the values returned by the forward hooks and returns them as a list"""
-        res = []
-        for (name, index) in target_dict.items():
-            activation = self._activations[name].clone().to('cpu')
-            if isinstance(index, list):
-                for i in index:
-                    res.append(activation[0][i])
-            elif index is not None:
-                res.append(activation[0][index]) #as far as i understand the first axis in a tensor contains nothing interesting, so always index past this
-            else:
-                res.append(activation)
-        self._activations.clear()
-        return res
+        if penalty: 
+            targets = []
+            remaining = []
+            for (name, index) in target_dict.items():
+                activation = self._activations[name].clone().to('cpu')
+                target_part = []
+                remaining_part = []
+                if index is not None:
+                    current_index = index
+                    if not isinstance(index, list):
+                        current_index = [index]
+                    for i in range(activation.shape[1]):
+                        if i in current_index:
+                            target_part.append(activation[0][i])
+                        else:
+                            remaining_part.append(activation[0][i]) 
+                targets.append(target_part)
+                remaining.append(remaining_part)
+            self._activations.clear()
+            return targets, remaining
+        else:
+            res = []
+            for (name, index) in target_dict.items():
+                activation = self._activations[name].clone().to('cpu')
+                if isinstance(index, list):
+                    for i in index:
+                        res.append([activation[0][i]])
+                elif index is not None:
+                    res.append([activation[0][index]]) #as far as i understand the first axis in a tensor contains nothing interesting, so always index past this
+                else:
+                    res.append([activation])
+            self._activations.clear()
+
+            #same return signature as with penalty
+            return res, []      
+
     
     def show_modules(self) -> None:
         """Prints the named modules in the internal model"""
@@ -157,12 +181,12 @@ class HookedModel(torch.nn.Module):
         with pd.option_context('display.max_rows', None):
             display(pdf.style.hide_index())
             
-    def forward(self, x: torch.Tensor, target_dict: TARGET_DICT) -> t.Tuple[torch.Tensor, t.List[torch.Tensor]]:
+    def forward(self, x: torch.Tensor, target_dict: TARGET_DICT, penalty : bool = False) -> t.Tuple[torch.Tensor, t.Tuple[t.List[torch.Tensor], t.List[torch.Tensor]]]:
         """Runs forward on the internal model and returns activations for any model targets specified.
             target_dict should be a dictionary of valid module names and indices in the internal model.
             Module names can be found by calling HookedModel.show_modules()"""
         self._register_hooks(list(target_dict.keys()))
         x = self.model.forward(x)
         self._unregister_hooks()
-        return x, self._get_activations(target_dict)
+        return x, self._get_activations(target_dict, penalty)
 

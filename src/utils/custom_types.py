@@ -62,6 +62,14 @@ class DreamConfig(t.TypedDict):
     iteration_mode:     str
     lr_mode:            str
 
+    save_meta:          bool
+
+    penalty:            bool
+    penalty_loss_type:  str
+    penalty_function:   str
+    penalty_red:        str
+
+
 
 
 
