@@ -106,15 +106,7 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
     
-    if dream_config['iteration_mode'] == 'ratio':
-        iter_exp = np.arange(dream_config['levels'])
-        start_iter, iter_ratio = dream_config['num_iters']
-        iters = ((iter_ratio ** iter_exp) * start_iter).astype(int)
-
-    elif dream_config['iteration_mode'] == 'custom':
-        iters = dream_config['num_iters']
-    else:
-        iters = [dream_config['num_iters']] * dream_config['levels']
+    iters = get_num_iters(dream_config)
 
     if dream_config['show'] == True:
         render = Rendering(dream_config['target_shape'])
@@ -225,13 +217,7 @@ def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, level : int,  i
 
 
     ### gradient update ####
-    if dream_config['lr_mode'] == 'custom':
-        lr = dream_config['lr'][level]
-    elif dream_config['lr_mode'] == 'ratio':
-        start_lr, lr_ratio = dream_config['lr']
-        lr = start_lr * lr_ratio ** level
-    else:
-        lr = dream_config['lr']
+    lr = get_lr(level, dream_config)
 
     tensor.data += lr * smooth_grad
     tensor.grad.data.zero_()
@@ -266,7 +252,25 @@ def gradient_smoothing(tensor: torch.Tensor, kernel_size: t.Union[int, t.List[in
         blurred_imgs.append(TF.gaussian_blur(tensor, kernel_size, new_sigma))
     return torch.stack(blurred_imgs).mean(dim = 0)
 
+def get_num_iters(dream_config : DreamConfig):
+    if dream_config['iteration_mode'] == 'ratio':
+        iter_exp = np.arange(dream_config['levels'])
+        start_iter, iter_ratio = dream_config['num_iters']
+        return ((iter_ratio ** iter_exp) * start_iter).astype(int)
 
+    elif dream_config['iteration_mode'] == 'custom':
+        return dream_config['num_iters']
+    else:
+        return [dream_config['num_iters']] * dream_config['levels']
+
+def get_lr(level : int, dream_config : DreamConfig):
+    if dream_config['lr_mode'] == 'custom':
+        return dream_config['lr'][level]
+    elif dream_config['lr_mode'] == 'ratio':
+        start_lr, lr_ratio = dream_config['lr']
+        return start_lr * lr_ratio ** level
+    else:
+        return dream_config['lr']
 
 def conv_per_channel(img : npt.NDArray[np.float32], kernel : npt.NDArray[np.float32], shift : bool = False):
     "Apply 2D convolution for each channel in the image"
