@@ -16,13 +16,11 @@ import torchvision.transforms.functional as TF
 
 from .utils.config import add_info_to_path, save
 from .utils.custom_types import *
-from .utils.visual import reshape_image, get_noise_image, tensor_to_image, postprocess_image, image_to_tensor, random_shift, save_img, Rendering, save_video
-
-
+from .utils.visual import reshape_image, get_noise_image, tensor_to_image, postprocess_image, image_to_tensor, random_shift, save_img, Rendering, Rendering_stats, save_video
 
 def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_config : ModelConfig, 
                     dataset_config : DatasetConfig, training_config : TrainingConfig, 
-                    img : t.Optional[npt.NDArray[np.float32]] = None) -> t.List[npt.NDArray[np.uint8]]:
+                    img : t.Optional[npt.NDArray[np.float32]] = None, render=None) -> t.List[npt.NDArray[np.uint8]]:
     if img is not None:
         input_img = img
     elif dream_config['input_img_path'] is not None:
@@ -39,7 +37,7 @@ def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_con
     else:
         raise RuntimeError('img, input_img_path and noise are all None')
     input_img = (input_img - dream_config['mean']) / dream_config['std']
-    output_images = dreamspace(input_img, model, dream_config, model_config['device'])
+    output_images = dreamspace(input_img, model, dream_config, model_config['device'], render=render)
     if dream_config['add_path_info']:
         path_info = model_config['model_name']
         for (layer, idxs) in dream_config['target_dict'].items():
@@ -101,15 +99,18 @@ def scale_level(img: npt.NDArray[t.Any], start_size: t.Tuple, level: int,
 
 
 def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module, 
-                    dream_config : DreamConfig, device : torch.device) -> t.List[npt.NDArray[np.uint8]]:
+                    dream_config : DreamConfig, device : torch.device, render=None) -> t.List[npt.NDArray[np.uint8]]:
     original_img = img.copy()
     output_images = []
     start_size = img.shape[:-1]  # save initial height and width
     
     iters = get_num_iters(dream_config)
 
-    if dream_config['show'] == True:
-        render = Rendering(dream_config['target_shape'])
+
+    
+    if dream_config['show'] == True and render is None:
+            render = Rendering(dream_config['target_shape'])
+
 
     if dream_config['scale_type'] == 'scale_space':
         scaled_img = scale_space(img, dream_config['levels'], dream_config)
@@ -123,7 +124,7 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
         for i in range(iters[level-1]):
             h_shift, w_shift = np.random.randint(-dream_config['shift_size'], dream_config['shift_size'] + 1, 2)
             shifted_tensor = random_shift(scaled_tensor, h_shift, w_shift, requires_grad = True)
-            dreamt_tensor = dream_ascent(shifted_tensor, model, level-1, i, iters[level-1],  dream_config, device)
+            dreamt_tensor = dream_ascent(shifted_tensor, model, level-1, i, iters[level-1],  dream_config, device, render=render)
             deshifted_tensor = random_shift(dreamt_tensor, h_shift,
                                              w_shift, undo=True, requires_grad = True)
 
@@ -162,11 +163,11 @@ def calculate_loss(tensor : torch.Tensor, loss_type : str = ""):
     return loss_part
 
 def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, level : int,  iter : int, num_iters : int,
-                dream_config : DreamConfig, device : torch.device) -> torch.Tensor:
+                dream_config : DreamConfig, device : torch.device, render=None) -> torch.Tensor:
       
  
     ## get activations
-    _, (target_acts, remaining_acts) = model(tensor, dream_config['target_dict'], dream_config['penalty'])
+    x, (target_acts, remaining_acts) = model(tensor, dream_config['target_dict'], dream_config['penalty'])
     losses_target = []
     losses_remaining = []
 
@@ -197,6 +198,12 @@ def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, level : int,  i
         loss = loss_target - loss_remaining
     else:
         loss = loss_target
+
+    if dream_config['show_stats']:
+        render.data = x.cpu().detach().numpy()[0]
+        render.loss_target = loss_target.cpu().detach().numpy()
+        if dream_config['penalty']:
+            render.loss_penalty = loss_remaining.cpu().detach().numpy()
 
     # do backpropagation and get gradient
 

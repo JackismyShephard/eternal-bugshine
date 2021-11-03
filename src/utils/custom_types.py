@@ -69,7 +69,8 @@ class DreamConfig(t.TypedDict):
     penalty_function:   str
     penalty_red:        str
 
-
+    show_stats:         bool
+    delay:              float
 
 
 

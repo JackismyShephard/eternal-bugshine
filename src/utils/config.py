@@ -98,7 +98,10 @@ DREAM_CONFIG: DreamConfig = {
     'penalty':            False,
     'penalty_loss_type':  'norm',
     'penalty_function':   'relu',
-    'penalty_red':        'mean'
+    'penalty_red':        'mean',
+
+    'show_stats':           False,
+    'delay':                0.0
 }
 
 BEETLE_DATASET: DatasetConfig = {
@@ -148,7 +151,7 @@ RESNET50_TRANSFER: ModelConfig = {
 RESNET34_FULL: ModelConfig = {
     'model_name':           'resnet34_fullytrained',
     'model_architecture':   'resnet34',
-    'pretrained':           True,
+    'pretrained':           False,
     'device':               DEVICE
 }
 

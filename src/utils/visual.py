@@ -1,7 +1,7 @@
 
 
 # used for image rendering
-from IPython.display import display
+
 import io
 from ipywidgets import widgets
 
@@ -176,7 +176,7 @@ def random_shift(tensor : torch.Tensor, h_shift : int, w_shift : int,
 
 
 def show_img(img : npt.NDArray[t.Any], title: t.Optional[str] = None, save_path : t.Optional[str]=None, 
-                dpi : t.Union[float]  =200, figsize : t.Tuple[float, float]=(7, 7), 
+                dpi : float  =200, figsize : t.Tuple[float, float]=(7, 7), 
                 show_axis : str ='on', close : bool =False) -> None:
     '''This is a utility function for displaying numpy images with matplotlib. Currently not used as widgets are better'''
     plt.figure(figsize=figsize)
@@ -258,4 +258,192 @@ class Rendering():
     def update(self, image : npt.NDArray[t.Any]) -> None:
         stream = self.compress_to_bytes(image)
         self.widget.value = stream
+
+class Rendering_stats(widgets.VBox):
+    def __init__(self, shape, scale = 2, target_dict = {'fc' : 0}):
+        super().__init__()        
+
+        self.target = 0
+        self.data = np.zeros(197)
+        self.loss_target = 0
+        self.loss_penalty = 0
+        self.max_y = 50
+        self.min_y = -50
+        # setup image
+        self.format = 'png'
+        if isinstance(shape, int):
+            h, w =  (shape, shape)
+        else:
+            h, w = shape
+        start_image = np.full((h,w,3), 255).astype(np.uint8)
+        image_stream = self.compress_to_bytes(start_image)
+
+        self.image = widgets.Image(value = image_stream, width=w*scale, height=h*scale)
+        self.image.layout = widgets.Layout(
+                border='solid 1px black',
+                margin='0px 10px 10px 0px',
+                padding='5px 5px 5px 5px')
+ 
+        # create plot in widget
+        output = widgets.Output()
+        with output:
+            self.fig, self.ax = plt.subplots(1,1,constrained_layout=True, figsize=(12, 4))
+
+        # plot setup
+        self.line, = self.ax.plot([0,197], [0,0], 'b')
+        self.target_point = self.ax.scatter([-50],[0], color = 'g', label='target')
+        self.current_point = self.ax.scatter([-50],[0], color = 'r', label='current prediction')
+        self.ax.set_ylim([self.min_y, self.max_y])
+        self.ax.set_xlim([-5,197+5])
+        self.ax.set_title('Model response')
+        self.ax.set_xlabel('Class')
+        self.ax.grid(True)
+        self.ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.40),
+          ncol=2)
+
+        self.fig.canvas.toolbar_visible = False
+
+        
+        # create labels for the statistics
+        self.loss_label = widgets.Label('0', layout=widgets.Layout(display="flex", justify_content="center"))
+        self.loss_target_label = widgets.Label('0', layout=widgets.Layout(display="flex", justify_content="center"))
+        self.loss_penalty_label = widgets.Label('0', layout=widgets.Layout(display="flex", justify_content="center"))
+
+        self.value_target_label = widgets.Label('0', layout=widgets.Layout(display="flex", justify_content="center"))
+        self.highest_value_label = widgets.Label('0', layout=widgets.Layout(display="flex", justify_content="center"))
+
+        self.target_class_label = widgets.Label(str(self.target), layout=widgets.Layout(display="flex", justify_content="center"))
+        self.current_class_label = widgets.Label('0', layout=widgets.Layout(display="flex", justify_content="center"))
+
+
+        # Place each statistic field in a layout
+        self.loss_box = self.create_label('Current loss : ', self.loss_label)
+
+        loss_target_box = self.create_label('Target loss : ', self.loss_target_label)
+        loss_penalty_box = self.create_label('Penalty loss : ', self.loss_penalty_label)
+        self.losses_box = widgets.HBox([loss_target_box,   loss_penalty_box ])
+        self.losses_box.layout = widgets.Layout(display='flex', align_items='flex-start',width='90%')
+
+        values_target_box = self.create_label('Target value : ', self.value_target_label)
+        highest_value_box = self.create_label('Predicted value : ', self.highest_value_label)
+        self.values_box = widgets.HBox([values_target_box,   highest_value_box ])
+        self.values_box.layout = widgets.Layout(display='flex', align_items='flex-start',width='90%')
+
+        target_class_box = self.create_label('Target class : ', self.target_class_label)
+        predicted_class_box = self.create_label('Predicted class : ', self.current_class_label)
+        self.class_box = widgets.HBox([target_class_box,   predicted_class_box ])
+        self.class_box.layout = widgets.Layout(display='flex', align_items='flex-start',width='90%')
+
+
+        # Place all statistics in its own layout
+        controls = widgets.VBox([
+            self.loss_box,
+            self.losses_box, 
+            self.values_box,
+            self.class_box,
+        ])
+        controls.layout = widgets.Layout(display='flex',
+                flex_flow='column',
+                align_items='center',
+                width='50%',
+                border='solid 1px black',
+                margin='0px 10px 10px 0px',
+                padding='5px 5px 5px 5px')
+
+
+        # Place both image and the statistics in the top part
+        top = widgets.HBox([self.image, controls])
+
+        top.layout = widgets.Layout(display='flex',
+                flex_flow='row',
+                align_items='center',
+                border='solid 1px black',
+                margin='0px 10px 10px 0px',
+                padding='5px 5px 5px 5px')
+
+        # Place graph in its own layout
+        out_box = widgets.Box([output])
+        output.layout = widgets.Layout()
+ 
+        # add to children
+        self.children = [top, out_box]
+
+        #display(self)
+    
+    def create_label(self, label, pointer, value=""):
+        """Helper function to create frame and label for each field"""
+        text = widgets.Label(label, layout=widgets.Layout(display="flex", justify_content="center"))
+        box = widgets.HBox([text, pointer])
+        box.layout = widgets.Layout(
+                display='flex',
+                flex_flow='row',
+                align_items='stretch',
+                width='90%',
+                border='solid 1px black',
+                margin='0px 10px 10px 0px',
+                padding='5px 5px 5px 5px')
+        return box
+
+
+    def update_graph(self, target, predicted):
+        """Update plot"""
+        x = np.linspace(0, self.data.shape[0]-1, self.data.shape[0])
+        if np.max(self.data) > self.max_y:
+            self.max_y = np.max(self.data) + 5
+
+        if np.min(self.data) < self.min_y:
+            self.min_y = np.min(self.data) - 5
+        self.ax.set_ylim([self.min_y, self.max_y])
+        self.line.set_xdata(x)
+        self.line.set_ydata(self.data)
+        self.target_point.set_offsets(target)
+        self.current_point.set_offsets(predicted)
+        self.fig.canvas.draw()
+
+
+    def update_stats(self):
+        """Update statistics"""
+        # if penalty is used
+        
+        total_loss = self.loss_target - self.loss_penalty
+
+        # set loss labels
+        self.loss_label.value = str(format(total_loss, ".5g"))
+        self.loss_target_label.value = str(format(self.loss_target, ".5g"))
+        self.loss_penalty_label.value = str(format(self.loss_penalty, ".5g"))
+
+        # calculate classes and position of points
+        target_value = self.data[self.target]
+        pred_value = np.max(self.data)
+        predicted = np.argmax(self.data)
+
+        # set remaining labels
+        self.value_target_label.value = str(format(target_value, ".5g"))
+        self.highest_value_label.value = str(format(pred_value, ".5g"))
+        self.current_class_label.value = str(predicted)
+
+        self.update_graph([self.target, target_value], [predicted, pred_value])
+
+    # To display the images, they need to be converted to a stream of bytes
+    def compress_to_bytes(self, data):
+        if isinstance(data, torch.Tensor):
+            data = data.cpu().detach().numpy()
+        """
+            Helper function to compress image data via PIL/Pillow.
+        """
+        buff = io.BytesIO()
+        img = Image.fromarray(data)    
+        img.save(buff, format=self.format)
+    
+        return buff.getvalue()
+
+    def update(self, image):
+        """Update image"""
+        stream = self.compress_to_bytes(image)
+        self.image.value = stream
+        self.update_stats()
+        
+
+    def __del__(self):
+        self.fig.close()
 
