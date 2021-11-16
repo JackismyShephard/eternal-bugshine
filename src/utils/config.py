@@ -375,3 +375,18 @@ def save(path :str, model_config: ModelConfig, dataset_config: DatasetConfig,
     
     with open(json_path, 'w') as json_file:
         json.dump(new_config, json_file, indent = 4)
+
+class Config():
+    """Container class to hold configurations"""
+
+    def __init__(   self, 
+                    model : ModelConfig = RESNET34_FULL, 
+                    dataset : DatasetConfig = BEETLE_DATASET,
+                    plot : PlotConfig = DEFAULT_PLOTTING,
+                    training : TrainingConfig = DEFAULT_TRAINING, 
+                    dream : DreamConfig = DREAM_CONFIG):
+        self.model = model 
+        self.dataset = dataset
+        self.plot = plot
+        self.training = training
+        self.dream = dream

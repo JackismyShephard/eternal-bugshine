@@ -14,50 +14,17 @@ import torch.nn.functional as F
 import torchvision.transforms.functional as TF
 
 
-from .utils.config import add_info_to_path, save
+from .utils.config import add_info_to_path, save, Config
 from .utils.custom_types import *
 from .utils.visual import reshape_image, get_noise_image, tensor_to_image, postprocess_image, image_to_tensor, random_shift, save_img, Rendering, Rendering_stats, save_video
+from .utils.deepdream_utility import *
 
-def dream_process(model : torch.nn.Module, dream_config : DreamConfig, model_config : ModelConfig, 
-                    dataset_config : DatasetConfig, training_config : TrainingConfig, 
+
+def dream_process(model : torch.nn.Module, config : Config, 
                     img : t.Optional[npt.NDArray[np.float32]] = None, render=None) -> t.List[npt.NDArray[np.uint8]]:
-    if img is not None:
-        input_img = img
-    elif dream_config['input_img_path'] is not None:
-        input_img = cv.imread(dream_config['input_img_path'])[:, :, ::-1]
-        input_img = reshape_image(input_img, dream_config['target_shape'])
-        input_img = input_img.astype(np.float32)  # convert from uint8 to float32
-        input_img /= np.array(255.0)  # get to [0, 1] range
-    elif dream_config['noise'] is not None:
-        input_img = get_noise_image(dream_config['noise'], dream_config['target_shape'], 
-                                dream_config['correlation'], dream_config['correlation_std'], 
-                                dream_config['noise_scale'])
-        input_img = input_img.astype(np.float32)
-        input_img = (input_img - input_img.min())/(input_img.max() - input_img.min() )
-    else:
-        raise RuntimeError('img, input_img_path and noise are all None')
-    input_img = (input_img - dream_config['mean']) / dream_config['std']
-    output_images = dreamspace(input_img, model, dream_config, model_config['device'], render=render)
-    if dream_config['add_path_info']:
-        path_info = model_config['model_name']
-        for (layer, idxs) in dream_config['target_dict'].items():
-            path_info =  path_info + '_' + layer + '_' + add_zeros(idxs)
-
-    else:
-        path_info = None
-    if dream_config['output_img_path'] is not None:
-        path = add_info_to_path(dream_config['output_img_path'], 
-            path_info, dream_config['output_img_ext'], dream_config['img_overwrite'])
-        if dream_config['save_meta']:
-            save(path, model_config, dataset_config, training_config,  dream_config = dream_config)
-        save_img(output_images[-1], path)
-
-    if dream_config['video_path'] is not None:
-        path = add_info_to_path(dream_config['video_path'], path_info, 
-                                    dream_config['video_ext'], dream_config['video_overwrite'])
-        if dream_config['save_meta']:
-            save(path, model_config, dataset_config, training_config,dream_config = dream_config)
-        save_video(path, output_images, dream_config['target_shape'])
+    input_img = get_start_image(config, img)
+    output_images = dreamspace(input_img, model, config.dream, config.model['device'], render=render)
+    save_output(output_images, config)
     
     return output_images
 
