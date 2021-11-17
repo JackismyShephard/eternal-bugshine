@@ -222,7 +222,7 @@ def save_video3(path: str, images: t.List[npt.NDArray[t.Any]], shape: t.Union[in
     imgs = [Image.fromarray(reshape_image(img, shape)) for img in images]
     imgs[0].save(path, save_all=True, append_images=imgs[1:], loop=0)
 
-
+import time
 # TODO implement more features and make it more dynamic
 # TODO make it more pretty
 class Rendering():
@@ -236,11 +236,12 @@ class Rendering():
             h, w =  (shape, shape)
         else:
             h, w = shape
+
         start_image = np.full((h,w,3), 255).astype(np.uint8)
         image_stream = self.compress_to_bytes(start_image)
-
         self.widget = widgets.Image(value = image_stream, width=w*scale, height=h*scale)
         display(self.widget) 
+
 
     # To display the images, they need to be converted to a stream of bytes
     def compress_to_bytes(self, data : t.Union[npt.NDArray[t.Any], torch.Tensor]) -> bytes:
@@ -257,6 +258,7 @@ class Rendering():
 
     def update(self, image : npt.NDArray[t.Any]) -> None:
         stream = self.compress_to_bytes(image)
+        time.sleep(1/144)
         self.widget.value = stream
 
 class Rendering_stats(widgets.VBox):
