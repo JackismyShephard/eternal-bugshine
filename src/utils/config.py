@@ -73,6 +73,7 @@ DREAM_CONFIG: DreamConfig = {
     'clamp_type': 'standardize',
     
     'show': False,
+    'display_interval' : 1,
     'figsize': (15, 15),
     'save_interval': 1,
     'dpi': 200,
@@ -390,3 +391,6 @@ class Config():
         self.plot = plot
         self.training = training
         self.dream = dream
+        self.mean = dream['mean']
+        self.std = dream['std']
+        self.device = model['device']

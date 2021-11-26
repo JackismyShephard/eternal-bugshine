@@ -11,8 +11,8 @@ class Sharpen_class():
     def __init__(self, config: Config, img: npt.NDArray[t.Any] = None):
         self.conv = Channel_convolution()
         self.scale_type = config.dream['scale_type']
-        self.mean = config.dream['mean']
-        self.std = config.dream['std']
+        self.mean = config.mean
+        self.std = config.std
 
     def apply(self, img: npt.NDArray[t.Any], level : int = None):
         return img
@@ -21,12 +21,12 @@ class Scale_class():
     """Base class for manipulating image scales"""
     def __init__(self, config: Config, sharpen_class : Sharpen_class = None, img: npt.NDArray[t.Any] = None):
         self.levels = config.dream['levels']
-        self.mean = config.dream['mean']
-        self.std = config.dream['std']
+        self.mean = config.mean
+        self.std = config.std
         self.clip_min = (0 - self.mean)/self.std
         self.clip_max = (1 - self.mean)/self.std
         self.ratio = config.dream['ratio']
-        self.device = config.model['device']
+        self.device = config.device
 
         if sharpen_class is None:
             self.sharpen_class = Sharpen_class(config, img)
@@ -62,9 +62,6 @@ class Scale_class():
 
 class Channel_convolution():
     "Apply 2D convolution for each channel in the image"
-    def __init__(self):
-        self.something = 0
-
     def conv(self, img : npt.NDArray[np.float32], kernel : npt.NDArray[np.float32] = None, sigma : float = 1, shift : bool = False):
         h,w,c = img.shape
 

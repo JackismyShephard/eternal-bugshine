@@ -23,38 +23,38 @@ from .utils.deepdream_utility import *
 def dream_process(model : torch.nn.Module, config : Config, 
                     img : t.Optional[npt.NDArray[np.float32]] = None, render=None) -> t.List[npt.NDArray[np.uint8]]:
     input_img = get_start_image(config, img)
-    output_images = dreamspace(input_img, model, config.dream, config.model['device'], render=render, config = config)
+    output_images = dreamspace(input_img, model, config = config, render=render)
     save_output(output_images, config)
     
     return output_images
 
 def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module, 
-                    dream_config : DreamConfig, device : torch.device, render=None, config = None) -> t.List[npt.NDArray[np.uint8]]:
+                    config : Config, render=None) -> t.List[npt.NDArray[np.uint8]]:
     output_images = []
 
-    iters = get_num_iters(dream_config)
+    iters = get_num_iters(config.dream)
 
-    if dream_config['show'] == True and render is None:
-            render = Rendering(dream_config['target_shape'])
+    if config.dream['show'] == True and render is None:
+            render = Rendering(config.dream['target_shape'])
     image_scale = Image_setup.setup(config, img)
 
     scaled_tensor = image_scale.get_first_level(img)
 
-    for level in range((dream_config['levels'] - dream_config['end_level'])):
+    for level in range((config.dream['levels'] - config.dream['end_level'])):
         for i in range(iters[level]):
-            h_shift, w_shift = np.random.randint(-dream_config['shift_size'], dream_config['shift_size'] + 1, 2)
+            h_shift, w_shift = np.random.randint(-config.dream['shift_size'], config.dream['shift_size'] + 1, 2)
             shifted_tensor = random_shift(scaled_tensor, h_shift, w_shift, requires_grad = True)
-            dreamt_tensor = dream_ascent(shifted_tensor, model, level, i, iters[level],  dream_config, device, render=render)
+            dreamt_tensor = dream_ascent(shifted_tensor, model, level, i, iters[level],  config=config, render=render)
             deshifted_tensor = random_shift(dreamt_tensor, h_shift,
                                              w_shift, undo=True, requires_grad = True)
 
             img = tensor_to_image(deshifted_tensor)
             
-            output_image = postprocess_image(img, dream_config['mean'],dream_config['std'])
-            if dream_config['show'] == True:
+            output_image = postprocess_image(img, config.mean ,config.std)
+            if config.dream['show'] == True and i % config.dream['display_interval'] == 0:
                 render.update(output_image)
 
-            if (i % dream_config['save_interval']) == 0:
+            if (i % config.dream['save_interval']) == 0:
                 output_images.append(output_image)
             scaled_tensor = deshifted_tensor
         scaled_tensor = image_scale.get_level(img, level)
@@ -72,34 +72,34 @@ def calculate_loss(tensor : torch.Tensor, loss_type : str = ""):
     return loss_part
 
 def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, level : int,  iter : int, num_iters : int,
-                dream_config : DreamConfig, device : torch.device, render=None) -> torch.Tensor:
+                config : Config, render=None) -> torch.Tensor:
       
  
     ## get activations
-    x, (target_acts, remaining_acts) = model(tensor, dream_config['target_dict'], dream_config['penalty'])
+    x, (target_acts, remaining_acts) = model(tensor, config.dream['target_dict'], config.dream['penalty'])
     losses_target = []
     losses_remaining = []
 
     ### calculate loss on target layers
     for target_activation in target_acts:
-        losses_target.append(calculate_loss(torch.stack(target_activation), dream_config['loss_type']))
+        losses_target.append(calculate_loss(torch.stack(target_activation), config.dream['loss_type']))
 
-    if dream_config['loss_red'] == 'mean':
+    if config.dream['loss_red'] == 'mean':
         loss_target = torch.mean(torch.stack(losses_target))
     else:
         loss_target = torch.sum(torch.stack(losses_target))
 
 
-    if dream_config['penalty']:
+    if config.dream['penalty']:
         for remaining_activation in remaining_acts:
-            if dream_config['penalty_function'] == 'relu':
+            if config.dream['penalty_function'] == 'relu':
                 remaining_f = F.relu(torch.stack(remaining_activation))
             else:
                 remaining_f = remaining_activation
 
-            losses_remaining.append(calculate_loss(remaining_f, dream_config['penalty_loss_type']))
+            losses_remaining.append(calculate_loss(remaining_f, config.dream['penalty_loss_type']))
 
-        if dream_config['penalty_red'] == 'mean':
+        if config.dream['penalty_red'] == 'mean':
             loss_remaining = torch.mean(torch.stack(losses_remaining))
         else:
             loss_remaining = torch.sum(torch.stack(losses_remaining))
@@ -108,10 +108,10 @@ def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, level : int,  i
     else:
         loss = loss_target
 
-    if dream_config['show_stats']:
+    if config.dream['show_stats']:
         render.data = x.cpu().detach().numpy()[0]
         render.loss_target = loss_target.cpu().detach().numpy()
-        if dream_config['penalty']:
+        if config.dream['penalty']:
             render.loss_penalty = loss_remaining.cpu().detach().numpy()
 
     # do backpropagation and get gradient
@@ -119,31 +119,31 @@ def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, level : int,  i
     loss.backward()
     grad = tensor.grad.data
     ### gaussian smoothing
-    sigma = ((iter + 1) / num_iters) * 2.0 + dream_config['smooth_const']
-    smooth_grad = gradient_smoothing(grad, dream_config['kernel_size'], sigma, dream_config['smooth_factors'])
+    sigma = ((iter + 1) / num_iters) * 2.0 + config.dream['smooth_const']
+    smooth_grad = gradient_smoothing(grad, config.dream['kernel_size'], sigma, config.dream['smooth_factors'])
     #smooth_grad = CascadeGaussianSmoothing(kernel_size=dream_config['kernel_size'], sigma=sigma,device=device)(grad)
     ### normalization of gradient
     g_std = torch.std(smooth_grad)
     g_mean = torch.mean(smooth_grad)
-    if dream_config['norm_type'] == 'standardize':
+    if config.dream['norm_type'] == 'standardize':
         smooth_grad = smooth_grad - g_mean
         smooth_grad = smooth_grad / g_std
     else:
-        smooth_grad /= torch.abs(g_mean + dream_config['eps'])
+        smooth_grad /= torch.abs(g_mean + config.dream['eps'])
 
 
     ### gradient update ####
-    lr = get_lr(level, dream_config)
+    lr = get_lr(level, config.dream)
 
     tensor.data += lr * smooth_grad
     tensor.grad.data.zero_()
     ### clamp gradient to avoid it diverging. vanishing/exploding gradient phenomenon?
-    if dream_config['clamp_type'] == 'standardize':
+    if config.dream['clamp_type'] == 'standardize':
         image_min = torch.tensor(
-            (-dream_config['mean'] / dream_config['std']).reshape(1, -1, 1, 1)).to(device)
+            (-config.mean / config.std).reshape(1, -1, 1, 1)).to(config.device)
         image_max = torch.tensor(
-            ((1 - dream_config['mean']) / dream_config['std']).reshape(1, -1, 1, 1)).to(device)
-    elif dream_config['clamp_type'] == 'unit':
+            ((1 - config.mean) / config.std).reshape(1, -1, 1, 1)).to(config.device)
+    elif config.dream['clamp_type'] == 'unit':
         image_min, image_max = torch.tensor(0), torch.tensor(1)
     else:
         image_min, image_max = torch.tensor(-1), torch.tensor(1)

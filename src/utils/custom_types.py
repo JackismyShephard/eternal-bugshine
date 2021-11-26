@@ -41,6 +41,7 @@ class DreamConfig(t.TypedDict):
     clamp_type:         t.Literal['standardize', 'unit', 'neg-unit']
 
     show:               bool
+    display_interval:   int
     figsize:            t.Tuple[int, int]
     save_interval:      int
     dpi:                int
