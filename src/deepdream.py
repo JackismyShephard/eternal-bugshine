@@ -252,3 +252,95 @@ class CascadeGaussianSmoothing(nn.Module):
         grad3 = self.conv(input, weight=self.weight3, groups=num_in_channels)
 
         return (grad1 + grad2 + grad3) / 3
+
+
+
+def dream_process_gen(model : torch.nn.Module, config : Config, 
+                    render=None) -> t.List[npt.NDArray[np.uint8]]:
+    input_img = torch.normal(0,1,(1,100,1,1))
+    output_images, resp = dreamspace_gen(input_img, model, config = config, render=render)
+    
+    
+    return output_images, resp
+
+
+def dreamspace_gen(img : npt.NDArray[np.float32], model : torch.nn.Module, 
+                    config : Config, render=None) -> t.List[npt.NDArray[np.uint8]]:
+    output_images = []
+
+    iters = get_num_iters(config.dream)
+
+    if config.dream['show'] == True and render is None:
+            render = Rendering(config.dream['target_shape'])
+
+    scaled_tensor = img.to(config.device)
+    scaled_tensor.requires_grad = True
+
+    for level in range(config.dream['levels']):
+        for i in range(iters[level]):
+            dreamt_tensor, resp = dream_ascent_gen(scaled_tensor, model, level, i, iters[level],  config=config, render=render)
+
+            current_img = model.gen(dreamt_tensor)
+            output_image = (tensor_to_image(current_img)*255).astype(np.uint8)
+            if config.dream['show'] == True and i % config.dream['display_interval'] == 0:
+                render.update(output_image)
+
+            if (i % config.dream['save_interval']) == 0:
+                output_images.append(output_image)
+
+    return output_images, resp.cpu().detach().numpy()
+
+def dream_ascent_gen(tensor : torch.Tensor, model : torch.nn.Module, level : int,  iter : int, num_iters : int,
+                config : Config, render=None) -> torch.Tensor:
+      
+ 
+    ## get activations
+    x, (target_acts, remaining_acts) = model(tensor, config.dream['target_dict'], config.dream['penalty'])
+
+    current_class = x.cpu().detach().numpy()
+
+    losses_target = []
+    losses_remaining = []
+
+    ### calculate loss on target layers
+    for target_activation in target_acts:
+        losses_target.append(calculate_loss(torch.stack(target_activation), config.dream['loss_type']))
+
+    if config.dream['loss_red'] == 'mean':
+        loss_target = torch.mean(torch.stack(losses_target))
+    else:
+        loss_target = torch.sum(torch.stack(losses_target))
+
+
+    if config.dream['penalty']:
+        for remaining_activation in remaining_acts:
+            if config.dream['penalty_function'] == 'relu':
+                remaining_f = F.relu(torch.stack(remaining_activation))
+            else:
+                remaining_f = remaining_activation
+
+            losses_remaining.append(calculate_loss(remaining_f, config.dream['penalty_loss_type']))
+
+        if config.dream['penalty_red'] == 'mean':
+            loss_remaining = torch.mean(torch.stack(losses_remaining))
+        else:
+            loss_remaining = torch.sum(torch.stack(losses_remaining))
+
+        loss = loss_target - loss_remaining
+    else:
+        loss = loss_target
+
+    # do backpropagation and get gradient
+
+    loss.backward()
+    grad = tensor.grad.data
+    ### normalization of gradient
+
+
+    ### gradient update ####
+    lr = get_lr(level, config.dream)
+
+    tensor.data += lr * grad
+    tensor.grad.data.zero_()
+    ### clamp gradient to avoid it diverging. vanishing/exploding gradient phenomenon?
+    return tensor, x

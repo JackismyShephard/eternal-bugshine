@@ -9,6 +9,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from torchvision import models
+import torchvision.transforms.functional as TF
 
 from .utils.custom_types import *
 from .utils.config import DEFAULT_METRICS_PATH, DEFAULT_MODEL_PATH, DEVICE
@@ -190,3 +191,128 @@ class HookedModel(torch.nn.Module):
         self._unregister_hooks()
         return x, self._get_activations(target_dict, penalty)
 
+class G_block(nn.Module):
+    def __init__(self, out_channels, in_channels=3, kernel_size=(4,4), strides=(2,2),
+                 padding=(1,1), **kwargs):
+        super(G_block, self).__init__(**kwargs)
+        self.conv2d_trans = nn.ConvTranspose2d(in_channels, out_channels,
+                                kernel_size, strides, padding, bias=False)
+        self.batch_norm = nn.BatchNorm2d(out_channels)
+        self.activation = nn.ReLU()
+
+    def forward(self, X):
+        return self.activation(self.batch_norm(self.conv2d_trans(X)))
+
+class GenModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        n_G = 64
+        self.net_G = nn.Sequential(
+            G_block(in_channels=100, out_channels=n_G*16, kernel_size=(7,14),
+                    strides=1, padding=0),                  # Output: (64 * 16, 7, 14)
+            G_block(in_channels=n_G*16, out_channels=n_G*8), # Output: (64 * 8, 14, 28)
+            G_block(in_channels=n_G*8, out_channels=n_G*4), # Output: (64 * 4, 28, 56)
+            G_block(in_channels=n_G*4, out_channels=n_G*2), # Output: (64 * 2, 56, 112)
+            G_block(in_channels=n_G*2, out_channels=n_G),   # Output: (64, 112, 224)
+            nn.ConvTranspose2d(in_channels=n_G, out_channels=3,
+                            kernel_size=4, stride=2, padding=1, bias=False),
+            nn.Tanh())  # Output: (3, 224, 448)
+        self.net_G.load_state_dict(torch.load('./Gen_01'))
+
+    def forward(self, X):
+        res = self.net_G(X)
+        res = (res + 1 ) / 2
+        return TF.gaussian_blur(res, 3, 1)
+
+class HookedModel_gen(torch.nn.Module):
+    """Augments a pytorch model with the ability to return activations from specific modules in the model.
+       Intended to be used in the following way: 'retval, activations = model(input, list_of_targets)'"""
+    def __init__(self, model: torch.nn.Module, mean, std) -> None:
+        super().__init__()
+        self.model = copy.deepcopy(model)
+        self._hooks: t.Dict[str, t.Any] = {}
+        self._activations: t.Dict[str, torch.Tensor] = {}   
+        m = torch.tensor(mean)
+        s = torch.tensor(std)
+        mean_tensor = torch.zeros(3,224,448)
+        std_tensor = torch.zeros(3,224,448)
+        mean_tensor[0,:] = m[0]   
+        mean_tensor[1,:] = m[1] 
+        mean_tensor[2,:] = m[2] 
+
+        std_tensor[0,:] = s[0]   
+        std_tensor[1,:] = s[1] 
+        std_tensor[2,:] = s[2] 
+        self.mean = mean_tensor.to('cuda')
+        self.std = std_tensor.to('cuda')
+        self.gen = GenModel().to('cuda')
+
+    def _hook_into(self, name: str) -> t.Callable[[torch.nn.Module, torch.Tensor, torch.Tensor], None]:
+        """Returns a hook function meant to be registered with register_forward_hook"""
+        def hook(model : torch.nn.Module, input: torch.Tensor, output : torch.Tensor):
+            self._activations[name] = output
+        return hook
+    
+    def _register_hooks(self, module_names: t.List[str]) -> None:
+        """Registers forward hooks on the internal model modules with names in module_names"""
+        for module_name in module_names:
+            module = self.model.get_submodule(module_name)
+            self._hooks[module_name] = module.register_forward_hook(
+                self._hook_into(module_name))
+
+    def _unregister_hooks(self) -> None:
+        """Removes any registered hooks and clears the interal hook dictionary"""
+        for module_name in self._hooks.keys():
+            self._hooks[module_name].remove()
+        self._hooks.clear()
+
+    #TODO in case we want to apply different weights to different activations, perhaps this should return a dictionary instead
+    #TODO not sure if to('cpu') slows us down. is there a way to encapsulate the behavior of _get_activations without this?
+
+    def _get_activations(self, target_dict: TARGET_DICT, penalty : bool = False) -> t.Tuple[t.List[torch.Tensor], t.List[torch.Tensor]]:
+        """Clones the values returned by the forward hooks and returns them as a list"""
+        if penalty: 
+            targets = []
+            remaining = []
+            for (name, index) in target_dict.items():
+                activation = self._activations[name].clone().to('cpu')
+                target_part = []
+                remaining_part = []
+                if index is not None:
+                    current_index = index
+                    if not isinstance(index, list):
+                        current_index = [index]
+                    for i in range(activation.shape[1]):
+                        if i in current_index:
+                            target_part.append(activation[0][i])
+                        else:
+                            remaining_part.append(activation[0][i]) 
+                targets.append(target_part)
+                remaining.append(remaining_part)
+            self._activations.clear()
+            return targets, remaining
+        else:
+            res = []
+            for (name, index) in target_dict.items():
+                activation = self._activations[name].clone().to('cpu')
+                if isinstance(index, list):
+                    for i in index:
+                        res.append([activation[0][i]])
+                elif index is not None:
+                    res.append([activation[0][index]]) #as far as i understand the first axis in a tensor contains nothing interesting, so always index past this
+                else:
+                    res.append([activation])
+            self._activations.clear()
+
+            #same return signature as with penalty
+            return res, []      
+
+    def forward(self, x: torch.Tensor, target_dict: TARGET_DICT, penalty : bool = False) -> t.Tuple[torch.Tensor, t.Tuple[t.List[torch.Tensor], t.List[torch.Tensor]]]:
+        """Runs forward on the internal model and returns activations for any model targets specified.
+            target_dict should be a dictionary of valid module names and indices in the internal model.
+            Module names can be found by calling HookedModel.show_modules()"""
+        self._register_hooks(list(target_dict.keys()))
+        x = (self.gen(x) - self.mean) / self.std
+        x = self.model.forward(x)
+        self._unregister_hooks()
+        return x, self._get_activations(target_dict, penalty)
