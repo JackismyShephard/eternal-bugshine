@@ -69,29 +69,27 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
             else:
                 y = norm_func_latent(enc(X)).reshape((-1, 197, 1,1)).to(device)
 
-            gen_x = gen(y)
 
+            optim_d.zero_grad()
+
+            gen_x = gen(y)
             disc_real = disc(X)
-            disc_fake = disc(gen_x)
-            
-            comp_real = comp(norm_func_img(X,mean_tensor,std_tensor))
-            comp_fake = comp(norm_func_img(gen_x,mean_tensor,std_tensor))
+            disc_fake = disc(gen_x.detach())
 
             #Update discriminator
 
-            loss_disc =  (- torch.log(disc_real) - torch.log(1 - disc_fake.detach())).sum()
+            loss_adv = (- torch.log(disc_fake)).sum()
+            loss_disc =  (- torch.log(disc_real) - torch.log(1 - disc_fake)).sum()
+            if loss_disc / loss_adv > 0.1:
+                loss_disc.backward()
 
+                optim_d.step()
 
-            optim_d.zero_grad()
             optim_g.zero_grad()
 
-
-
-            loss_disc.backward()
-
-            optim_d.step()
-            optim_d.zero_grad()
-
+            disc_fake = disc(gen_x)
+            comp_real = comp(norm_func_img(X,mean_tensor,std_tensor))
+            comp_fake = comp(norm_func_img(gen_x,mean_tensor,std_tensor))
             
             loss_img = ((gen_x - X)**2).sum()
 
@@ -100,8 +98,8 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
             loss_feat = ((comp_fake - comp_real)**2).sum()
             
             loss_gen = lambdas[0] * loss_adv + \
-                    lambdas[1] * loss_img + \
-                    lambdas[2] * loss_feat 
+                        lambdas[1] * loss_img + \
+                        lambdas[2] * loss_feat 
 
             loss_gen.backward()
 
