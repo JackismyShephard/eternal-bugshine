@@ -6,6 +6,8 @@ import IPython.display as display
 from torchvision.utils import make_grid
 display.set_matplotlib_formats('svg')
 
+from .utils.visual import show_img, tensor_to_image
+
 from torch.optim import Adam
 
 device = "cuda:0"
@@ -56,12 +58,8 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
         adv_l_running = 0.0
         feat_l_running = 0.0
         gen_l_running = 0.0
-        i = 0
         # Iterate over data.
         for X, y in dataloader:
-            if i % 16 == 0:
-                print(f'iteration {i+1} of {num_iters}')
-            i += 1
             X = X.to(device)
             if enc is None:
                 y = F.one_hot(y, 197).float()
@@ -90,7 +88,7 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
             disc_fake = disc(gen_x)
             comp_real = comp(norm_func_img(X,mean_tensor,std_tensor))
             comp_fake = comp(norm_func_img(gen_x,mean_tensor,std_tensor))
-            
+
             loss_img = ((gen_x - X)**2).sum()
 
             loss_adv = (- torch.log(disc_fake)).sum()
@@ -117,20 +115,27 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
         feat_losses.append(feat_l_running / dataset_size)
         gen_losses.append(gen_l_running / dataset_size)
 
-
-        fig, ax = plt.subplots(1,1, figsize=(20,10))
-        fig.set_facecolor('white')
-        ax.plot(disc_losses, label='discriminator loss')
-        ax.plot(img_losses, label='image space loss')
-        ax.plot(adv_losses, label='adversarial loss')
-        ax.plot(feat_losses, label='feature space loss')
-        ax.plot(gen_losses, label='generator loss')
-        ax.legend()
-        ax.grid()
-            
-        gen_xs = gen(data_latents)
+        gen_xs = (gen(data_latents)+1)/2
         
-        make_grid(gen_xs, nrow=8)
+        image_grid = tensor_to_image(make_grid(gen_xs, nrow=int(gen_xs.shape[0]/4)))
+
+        display.clear_output(wait=True)
+        fig, ax = plt.subplots(2,1, figsize=(10,10))
+        fig.set_facecolor('white')
+        ax[0].plot(disc_losses, label='discriminator loss')
+        ax[0].plot(img_losses, label='image space loss')
+        ax[0].plot(adv_losses, label='adversarial loss')
+        ax[0].plot(feat_losses, label='feature space loss')
+        ax[0].plot(gen_losses, label='generator loss')
+        ax[0].legend()
+        ax[0].grid()
+
+        ax[1].imshow(image_grid)
+
+        plt.tight_layout()
+        plt.show()
+        plt.close()
+
 
 
     time_elapsed = time.time() - since
