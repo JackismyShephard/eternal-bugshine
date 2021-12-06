@@ -1,0 +1,24 @@
+GAM_train 
+    - parameters
+        - Gen = net
+        - Dis = net
+        - Comp = net
+        - encoder = net
+        - gen_to_comp_normalize = function
+        - Lambda
+        - optim_gen
+        - optim_dis
+        - loss_feat
+        - loss_adv
+        - loss_img
+        - loss_dis
+        - data
+        - hyperparameters
+    
+    
+GAM GAN
+    - parameters
+        - clipping
+        - normalization
+
+
