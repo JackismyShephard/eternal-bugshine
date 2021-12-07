@@ -13,7 +13,7 @@ from torch.optim import Adam
 device = "cuda:0"
 
 def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = [ 0.0002, 0.9, 0.999],  
-            lambdas = [0.01, 2e-6, 100], num_epochs=200, display_images = True, enc = None):
+            lambdas = [100, 2e-6, 0.01], num_epochs=200, display_images = True, enc = None):
     since = time.time()
     gen = gen.to(device)
     disc = disc.to(device)
@@ -44,13 +44,13 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
     iterable = iter(dataloader)
     data_imgs, data_latents = next(iterable)
 
-    num_iters = len(dataloader)
-
     if enc is not None:
         data_latents = norm_func_latent(enc(data_imgs)).reshape((-1, 197, 1,1)).to(device)
     else :
         data_latents = F.one_hot(data_latents, 197).float()
         data_latents = data_latents.reshape((-1, 197, 1,1)).to(device)
+
+    loss_f = torch.nn.BCEWithLogitsLoss(reduction='sum')
 
     for epoch in range(num_epochs):
         disc_l_running = 0.0
@@ -74,10 +74,13 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
             disc_real = disc(X)
             disc_fake = disc(gen_x.detach())
 
+            ones = torch.ones((X.shape[0],), device=X.device)
+            zeros = torch.zeros((X.shape[0],), device=X.device)
+
             #Update discriminator
 
-            loss_adv = (- torch.log(disc_fake)).sum()
-            loss_disc =  (- torch.log(disc_real) - torch.log(1 - disc_fake)).sum()
+            loss_adv = loss_f(disc_fake,ones.reshape(disc_fake.shape))
+            loss_disc = (loss_f(disc_real, ones.reshape(disc_real.shape)) + loss_f(disc_fake, zeros.reshape(disc_fake.shape)))/2
             if loss_disc / loss_adv > 0.1:
                 loss_disc.backward()
 
@@ -91,7 +94,7 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
 
             loss_img = ((gen_x - X)**2).sum()
 
-            loss_adv = (- torch.log(disc_fake)).sum()
+            loss_adv = loss_f(disc_fake,ones.reshape(disc_fake.shape))
 
             loss_feat = ((comp_fake - comp_real)**2).sum()
             
@@ -102,24 +105,34 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
             loss_gen.backward()
 
             optim_g.step()
-
             disc_l_running += loss_disc.cpu().detach().item()
-            img_l_running += loss_img.cpu().detach().item()
-            adv_l_running += loss_adv.cpu().detach().item()
-            feat_l_running += loss_feat.cpu().detach().item()
+            img_l_running += lambdas[1]*loss_img.cpu().detach().item()
+            adv_l_running += lambdas[0]*loss_adv.cpu().detach().item()
+            feat_l_running += lambdas[2]*loss_feat.cpu().detach().item()
             gen_l_running += loss_gen.cpu().detach().item()
             
+
+
         disc_losses.append(disc_l_running / dataset_size)
         img_losses.append(img_l_running / dataset_size)
         adv_losses.append(adv_l_running / dataset_size)
         feat_losses.append(feat_l_running / dataset_size)
         gen_losses.append(gen_l_running / dataset_size)
 
+
+
         gen_xs = (gen(data_latents)+1)/2
         
         image_grid = tensor_to_image(make_grid(gen_xs, nrow=int(gen_xs.shape[0]/4)))
 
         display.clear_output(wait=True)
+
+        print(disc_l_running / dataset_size)
+        print(img_l_running / dataset_size)
+        print(adv_l_running / dataset_size)
+        print(feat_l_running / dataset_size)
+        print(gen_l_running / dataset_size)
+
         fig, ax = plt.subplots(2,1, figsize=(10,10))
         fig.set_facecolor('white')
         ax[0].plot(disc_losses, label='discriminator loss')
