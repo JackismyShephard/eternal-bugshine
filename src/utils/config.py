@@ -23,7 +23,7 @@ IMAGENET_STD: npt.NDArray[np.float32] = np.array([0.229, 0.224, 0.225], dtype=np
 
 BEETLENET_MEAN: npt.NDArray[np.float32] = np.array([0.8442649, 0.82529384, 0.82333773], dtype=np.float32)
 BEETLENET_STD: npt.NDArray[np.float32] = np.array([0.28980458, 0.32252666, 0.3240354], dtype=np.float32)
-BEETLENET_AVERAGE_SHAPE: t.Tuple[float, float]= (224, 448)
+BEETLENET_AVERAGE_SHAPE: t.Tuple[int, int]= (224, 448)
 
 BEETLENET_PATH : str = './data/beetles/images/' 
 BEETLENET_NUM_CLASSES : int = len(next(os.walk(BEETLENET_PATH))[1])
@@ -187,6 +187,13 @@ RESNET18_TRANSFER: ModelConfig = {
 RESNET18_TEST: ModelConfig = {
     'model_name':           'resnet18_test',
     'model_architecture':   'resnet18',
+    'pretrained':           False,
+    'device':               DEVICE
+}
+
+GOOGLENET_FULL: ModelConfig = {
+    'model_name':           'googlenet_full',
+    'model_architecture':   'googlenet',
     'pretrained':           False,
     'device':               DEVICE
 }

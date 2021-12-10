@@ -79,7 +79,7 @@ class ModelConfig(t.TypedDict):
     """Holds information used when loading a model"""
     model_name:         str
     """Either the name of a stored model or None if using purely pretrained model"""
-    model_architecture: t.Literal['resnet18', 'resnet34', 'resnet50']
+    model_architecture: t.Literal['resnet18', 'resnet34', 'resnet50', 'googlenet']
     """Specify the architecture of the model"""
     pretrained:         bool
     """Decide if the loaded model should be pretrained or not"""

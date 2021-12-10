@@ -52,12 +52,12 @@ class EarlyStopping():
                     self.early_stop = True
     def __repr__(self) -> str:
         args = 'patience = {}, min_delta = {}, min_epochs = {}'.format(self.patience, self.min_delta, self.min_epochs)
-        return self.__class__.__name__ + '({})'.format(args)
+        return self.__class__.__name__ + '({})'.format(args) # we dont really need this repr method here in any case
 
 
 def fit(model : torch.nn.Module, data_loaders : t.Dict[str, DataLoader], dataset_sizes : t.Dict[str, int],
         model_config: ModelConfig, training_config: TrainingConfig, dataset_config: DatasetConfig, 
-        plot_config: PlotConfig, clear='terminal', plot: bool=False, save_interval: int=25) -> npt.NDArray:
+        plot_config: PlotConfig, clear='terminal', plot: bool=False, save_interval: int=25, discount = 0.3) -> npt.NDArray:
     assert model_config is not None
 
     device = model_config['device']
@@ -124,8 +124,13 @@ def fit(model : torch.nn.Module, data_loaders : t.Dict[str, DataLoader], dataset
                     
                        
                         outputs = model(inputs)
+                        if model_config['model_architecture'] == 'googlenet' and model.training:
+                            outputs, aux_outputs_2, aux_outputs_1 = outputs
+                            loss = criterion(outputs, labels) + discount * (criterion(aux_outputs_2, labels) + criterion(aux_outputs_1, labels) )
+                        else:
+                            loss = criterion(outputs, labels) 
                         _, preds = torch.max(outputs, 1)
-                        loss = criterion(outputs, labels)
+                        
 
                         # backward + optimize only if in training phase
                         if phase == 'train':
@@ -183,7 +188,7 @@ def fit(model : torch.nn.Module, data_loaders : t.Dict[str, DataLoader], dataset
                             training_config['metrics_path'] +model_config['model_name'])
             scheduler.step()
             if epoch % save_interval == 0:
-                save(training_config['model_path']+model_config['model_name'], model_config,
+                save(training_config['model_path']+model_config['model_name'], model_config, #consider not saving while running but only when done.
                      dataset_config, training_config, best_model_wts, None, data_loaders, metrics, None)
             if early_stopping.early_stop:
                 training_config['train_info']['stopped_early'] = True
@@ -206,7 +211,7 @@ def fit(model : torch.nn.Module, data_loaders : t.Dict[str, DataLoader], dataset
     # load best model weights
     model.load_state_dict(best_model_wts)
     save(training_config['model_path']+model_config['model_name'], model_config,
-         dataset_config, training_config, best_model_wts, None, data_loaders, metrics, None)
+         dataset_config, training_config, best_model_wts, None, data_loaders, metrics, None) # this one is redundant. the only thing changed at this point is possible stopped_early set to True. 
 
     return metrics
 
