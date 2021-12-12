@@ -198,6 +198,80 @@ GOOGLENET_FULL: ModelConfig = {
     'device':               DEVICE
 }
 
+RESNET50_FULL_WHITE: ModelConfig = {
+    'model_name':           'resnet50_fullytrained_white',
+    'model_architecture':   'resnet50',
+    'pretrained':           False,
+    'device':               DEVICE
+}
+
+RESNET50_TRANSFER_WHITE: ModelConfig = {
+    'model_name':           'resnet50_transferlearned_white',
+    'model_architecture':   'resnet50',
+    'pretrained':           True,
+    'device':               DEVICE
+}
+
+RESNET34_FULL_WHITE: ModelConfig = {
+    'model_name':           'resnet34_fullytrained_white',
+    'model_architecture':   'resnet34',
+    'pretrained':           False,
+    'device':               DEVICE
+}
+
+RESNET34_TRANSFER_WHITE: ModelConfig = {
+    'model_name':           'resnet34_transferlearned_white',
+    'model_architecture':   'resnet34',
+    'pretrained':           True,
+    'device':               DEVICE
+}
+
+RESNET18_FULL_WHITE: ModelConfig = {
+    'model_name':           'resnet18_fullytrained_white',
+    'model_architecture':   'resnet18',
+    'pretrained':           False,
+    'device':               DEVICE
+}
+
+RESNET18_TRANSFER_WHITE: ModelConfig = {
+    'model_name':           'resnet18_transferlearned_white',
+    'model_architecture':   'resnet18',
+    'pretrained':           True,
+    'device':               DEVICE
+}
+
+TRAINING_FULL: TrainingConfig = {
+    
+    'optim':                None,
+    'optim_args':           {'lr': 0.001, 'eps': 0.1},
+    'criterion':            None,
+    'scheduler':            None,
+    'early_stopping':       None,
+    'early_stopping_args':  {'min_epochs': 250, 'patience': 5, 'min_delta': 0},
+    'train_info':           {'num_epochs': 400, 'best_model_epochs': 0, 
+                             'lr_decay': 0.995, 'stopped_early': False,
+                             'test_acc':   0, 'best_model_val_acc' : 0.0, 
+                             'best_model_val_loss' : float("inf")},
+    'metrics_path' : DEFAULT_METRICS_PATH,
+    'model_path': DEFAULT_MODEL_PATH
+}
+
+TRAINING_TRANSFER: TrainingConfig = {
+    
+    'optim':                None,
+    'optim_args':           {'lr': 0.001, 'eps': 0.1},
+    'criterion':            None,
+    'scheduler':            None,
+    'early_stopping':       None,
+    'early_stopping_args':  {'min_epochs': 15, 'patience': 5, 'min_delta': 0},
+    'train_info':           {'num_epochs': 400, 'best_model_epochs': 0, 
+                             'lr_decay': 0.995, 'stopped_early': False,
+                             'test_acc':   0, 'best_model_val_acc' : 0.0, 
+                             'best_model_val_loss' : float("inf")},
+    'metrics_path' : DEFAULT_METRICS_PATH,
+    'model_path': DEFAULT_MODEL_PATH
+}
+
 DEFAULT_TRAINING: TrainingConfig = {
     
     'optim':                None,
