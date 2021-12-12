@@ -127,6 +127,27 @@ BEETLE_DATASET: DatasetConfig = {
                             ]
 }
 
+BEETLE_DATASET_WHITE: DatasetConfig = {
+    'image_folder_path':    BEETLENET_PATH,
+    'num_classes':          BEETLENET_NUM_CLASSES,
+    'batch_size':           32,
+    'num_workers':          DEFAULT_NUM_WORKERS,
+    'rng_seed':             RNG_SEED,
+    'average_image_shape':  BEETLENET_AVERAGE_SHAPE,
+    'mean':                 BEETLENET_MEAN,
+    'std':                  BEETLENET_STD,
+    'training_data_ratio':  0.8,
+    'validation_data_ratio': 0.5,
+    'data_augmentations':   [
+        RandomVerticalFlip(),
+        RandomRotation((-3, 3), fill=255),
+        NotStupidRandomResizedCrop(min_scale=0.95, max_scale=1),
+        Resize(BEETLENET_AVERAGE_SHAPE),
+        ToTensor(),
+        Normalize(BEETLENET_MEAN, BEETLENET_STD)
+    ]
+}
+
 
 RESNET34_FULL_RGB: ModelConfig = {
     'model_name':           'resnet34_fullytrained_rgb',
