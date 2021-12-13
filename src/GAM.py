@@ -156,4 +156,4 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
         
-    return gen, [disc_l_running, img_l_running, adv_l_running, feat_l_running, gen_l_running]
+    return gen, [disc_losses, img_losses, adv_losses, feat_losses, gen_losses]
