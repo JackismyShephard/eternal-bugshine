@@ -45,6 +45,9 @@ DEFAULT_MODEL_PATH : str = 'models/'
 DEFAULT_METRICS_PATH : str = 'models/'
 Path('models').mkdir(parents=True, exist_ok=True)
 
+DEFAULT_TEST_PATH : str = './output/tests/'
+Path('./output/tests/').mkdir(parents=True, exist_ok=True)
+
 DREAM_CONFIG: DreamConfig = {
     'target_dict': {'fc': None}, #None = whole layer, otherwise specify index as tuple (y,x). 
     'mean': BEETLENET_MEAN,
