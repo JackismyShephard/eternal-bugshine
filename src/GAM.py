@@ -1,5 +1,6 @@
 import time
 import torch
+import numpy as np
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import IPython.display as display
@@ -43,7 +44,7 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
 
     iterable = iter(dataloader)
     data_imgs, data_latents = next(iterable)
-
+    data_imgs = data_imgs.to(device)
     if enc is not None:
         data_latents = norm_func_latent(enc(data_imgs)).reshape((-1, 197, 1,1)).to(device)
     else :
@@ -106,9 +107,9 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
 
             optim_g.step()
             disc_l_running += loss_disc.cpu().detach().item()
-            img_l_running += lambdas[1]*loss_img.cpu().detach().item()
-            adv_l_running += lambdas[0]*loss_adv.cpu().detach().item()
-            feat_l_running += lambdas[2]*loss_feat.cpu().detach().item()
+            img_l_running += loss_img.cpu().detach().item()
+            adv_l_running += loss_adv.cpu().detach().item()
+            feat_l_running += loss_feat.cpu().detach().item()
             gen_l_running += loss_gen.cpu().detach().item()
             
 
@@ -128,17 +129,17 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
         display.clear_output(wait=True)
 
         print(disc_l_running / dataset_size)
-        print(img_l_running / dataset_size)
-        print(adv_l_running / dataset_size)
-        print(feat_l_running / dataset_size)
+        print((lambdas[1]*img_l_running )/ dataset_size)
+        print((lambdas[0]*adv_l_running )/ dataset_size)
+        print((lambdas[2]*feat_l_running ) / dataset_size)
         print(gen_l_running / dataset_size)
 
         fig, ax = plt.subplots(2,1, figsize=(10,10))
         fig.set_facecolor('white')
         ax[0].plot(disc_losses, label='discriminator loss')
-        ax[0].plot(img_losses, label='image space loss')
-        ax[0].plot(adv_losses, label='adversarial loss')
-        ax[0].plot(feat_losses, label='feature space loss')
+        ax[0].plot(lambdas[1]*np.array(img_losses), label='image space loss')
+        ax[0].plot(lambdas[0]*np.array(adv_losses), label='adversarial loss')
+        ax[0].plot(lambdas[2]*np.array(feat_losses), label='feature space loss')
         ax[0].plot(gen_losses, label='generator loss')
         ax[0].legend()
         ax[0].grid()
@@ -155,4 +156,4 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
         
-    return gen
+    return gen, [disc_l_running, img_l_running, adv_l_running, feat_l_running, gen_l_running]
