@@ -46,7 +46,7 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
     data_imgs, data_latents = next(iterable)
     data_imgs = data_imgs.to(device)
     if enc is not None:
-        data_latents = norm_func_latent(enc(data_imgs)).reshape((-1, 197, 1,1)).to(device)
+        data_latents = norm_func_latent(enc(   norm_func_img(data_imgs)  )).reshape((-1, 197, 1,1)).to(device)
     else :
         data_latents = F.one_hot(data_latents, 197).float()
         data_latents = data_latents.reshape((-1, 197, 1,1)).to(device)
@@ -66,7 +66,7 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
                 y = F.one_hot(y, 197).float()
                 y = y.reshape((-1, 197, 1,1)).to(device)
             else:
-                y = norm_func_latent(enc(X)).reshape((-1, 197, 1,1)).to(device)
+                y = norm_func_latent(enc( norm_func_img(X)  )).reshape((-1, 197, 1,1)).to(device)
 
 
             optim_d.zero_grad()
