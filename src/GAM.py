@@ -136,15 +136,15 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
 
         fig, ax = plt.subplots(2,1, figsize=(10,10))
         fig.set_facecolor('white')
-        ax[0].plot(disc_losses, label='discriminator loss')
-        ax[0].plot(lambdas[1]*np.array(img_losses), label='image space loss')
-        ax[0].plot(lambdas[0]*np.array(adv_losses), label='adversarial loss')
-        ax[0].plot(lambdas[2]*np.array(feat_losses), label='feature space loss')
-        ax[0].plot(gen_losses, label='generator loss')
-        ax[0].legend()
-        ax[0].grid()
+        ax[1].plot(disc_losses, label='discriminator loss')
+        ax[1].plot(lambdas[1]*np.array(img_losses), label='image space loss')
+        ax[1].plot(lambdas[0]*np.array(adv_losses), label='adversarial loss')
+        ax[1].plot(lambdas[2]*np.array(feat_losses), label='feature space loss')
+        ax[1].plot(gen_losses, label='generator loss')
+        ax[1].legend()
+        ax[1].grid()
 
-        ax[1].imshow(image_grid)
+        ax[0].imshow(image_grid)
 
         plt.tight_layout()
         plt.show()
