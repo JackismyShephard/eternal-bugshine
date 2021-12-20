@@ -14,20 +14,37 @@ from torch.optim import Adam
 # Setup device to use gpu if available
 device = "cuda:0"
 
+
 import sys
-def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = [ 0.0002, 0.9, 0.999],  
-            lambdas = [100, 2e-6, 0.01], num_epochs=200, enc = None, latent_noise = None, static_enc = True, display_images = True, print_loss = True, input_channels = 197):
+def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datasizes, lrs = [ 0.0002, 0.9, 0.999],  
+            lambdas = [100, 2e-6, 0.01], num_epochs=200, enc = None, latent_noise = None, static_enc = True, display_images = True, acc = True, print_loss = True, input_channels = 197, split_data = True):
     """Training for GAM setup, assumes models are on the gpu"""
     # Calculate execution time
     since = time.time()
 
+    if split_data:
+        # Split datasets
+        dataloader = dataloaders['train']
+        dataloader_val = dataloaders['val']
+        dataloader_test = dataloaders['test']
+
+        datasize = datasizes['train']
+        datasize_val = datasizes['val']
+        datasize_test = datasizes['test']
+    else:
+        dataloader = dataloaders
+        datasize = datasizes
+
+    lr_gamma = 0.995
+
     # Setup statistics
-    dataset_size = len(dataloader) * dataloader.batch_size
     disc_losses = []
     img_losses = []
     adv_losses = []
     feat_losses = []
     gen_losses = []
+    val_acc = []
+    test_acc = []
 
     # Setup normalization 
     in_channels = input_channels
@@ -38,12 +55,17 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
     optim_g = Adam(gen.parameters(),  lr=lrs[0], betas=(lrs[1], lrs[2]))
     optim_d = Adam(disc.parameters(),  lr=lrs[0], betas=(lrs[1], lrs[2]))
 
+    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(optim_g, gamma=lr_gamma)
+    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optim_d, gamma=lr_gamma)
+
     # If the encoder also has to be trained
     if not static_enc:
         optim_e = Adam(enc.parameters(),  lr=lrs[0], betas=(lrs[1], lrs[2]))
+        scheduler_e = torch.optim.lr_scheduler.ExponentialLR(optim_e, gamma=lr_gamma)
 
     # Loss function for gen and disc
     loss_f = torch.nn.BCEWithLogitsLoss(reduction='sum')
+
 
     # Calculating images takes up precious vram
     if display_images:
@@ -93,7 +115,7 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
                         else :
                             y = F.one_hot(y, in_channels).float().to(device)
                         if latent_noise is not None:
-                            y.data = y.data + torch.normal(latent_noise[0],latent_noise[0], y.shape).to(device)
+                            y.data = y.data + torch.normal(latent_noise[0],latent_noise[1], y.shape).to(device)
                         y.data = y.reshape((-1, in_channels, 1, 1)).data
 
                 # If the encoder needs to be trained we need autograd 
@@ -107,12 +129,12 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
                 disc_real = disc(X)
                 # Detach to stop autograd at this value
                 disc_fake = disc(gen_x.detach())
+                
+                ones = torch.ones(disc_fake.shape, device='cuda')
+                zeros = torch.zeros(disc_fake.shape, device='cuda')
 
-                ones = torch.ones((X.shape[0],), device=X.device)
-                zeros = torch.zeros((X.shape[0],), device=X.device)
-
-                loss_adv = loss_f(disc_fake,ones.reshape(disc_fake.shape))
-                loss_disc = (loss_f(disc_real, ones.reshape(disc_real.shape)) + loss_f(disc_fake, zeros.reshape(disc_fake.shape)))/2
+                loss_adv = loss_f(disc_fake,ones)
+                loss_disc = (loss_f(disc_real, ones) + loss_f(disc_fake, zeros))/2
 
             # Only update if ratio is not to small
             if loss_disc / loss_adv > 0.1:
@@ -168,45 +190,90 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
             adv_l_running += loss_adv.cpu().detach().item()
             feat_l_running += loss_feat.cpu().detach().item()
             gen_l_running += loss_gen.cpu().detach().item()
-            
+        
+        # Dont know if this makes a difference
+        optim_d.zero_grad()
+        optim_g.zero_grad()
+        scheduler_d.step()
+        scheduler_g.step()
+        if not static_enc:
+            scheduler_e.step()
+            optim_e.zero_grad()
 
         # Save loss for each epoch
-        disc_losses.append(disc_l_running / dataset_size)
-        img_losses.append(img_l_running / dataset_size)
-        adv_losses.append(adv_l_running / dataset_size)
-        feat_losses.append(feat_l_running / dataset_size)
-        gen_losses.append(gen_l_running / dataset_size)
+        disc_losses.append(disc_l_running / datasize)
+        img_losses.append(img_l_running / datasize)
+        adv_losses.append(adv_l_running / datasize)
+        feat_losses.append(feat_l_running / datasize)
+        gen_losses.append(gen_l_running / datasize)
+
+        if acc:
+            test_acc_temp = torch.tensor([0], device='cuda')
+            val_acc_temp = torch.tensor([0], device='cuda')
+
+            for X, y in dataloader_test:
+                X = X.to('cuda')
+                y = y.to('cuda')
+                with torch.no_grad():
+                    lat = enc(X).view(X.shape[0],input_channels,1,1)
+                    res = comp._forward_impl(norm_func_img((gen(lat)+1)/2, mean, std),False)
+                    test_acc_temp += torch.sum(torch.argmax(res, 1) == y)
+
+            for X, y in dataloader_val:
+                X = X.to('cuda')
+                y = y.to('cuda')
+                with torch.no_grad():
+                    lat = enc(X).view(X.shape[0],input_channels,1,1)
+                    res = comp._forward_impl(norm_func_img((gen(lat)+1)/2, mean, std),False)
+                    val_acc_temp += torch.sum(torch.argmax(res, 1) == y)
+            test_acc.append(test_acc_temp.cpu().item()/datasize_test) 
+            val_acc.append(val_acc_temp.cpu().item()/datasize_val) 
+
+
 
         # Show images and statistics
         display.clear_output(wait=True)
         if print_loss:
             elapsed_time = time.time()
             print(f'epoch {epoch + 1} of {num_epochs}: average epoch time {int((elapsed_time-since)/(epoch+1))}s')
-            print(f'discriminator loss: {disc_l_running / dataset_size}')
-            print(f'image loss: {(lambdas[1]*img_l_running )/ dataset_size}')
-            print(f'adversarial loss: {(lambdas[0]*adv_l_running )/ dataset_size}')
-            print(f'feature loss: {(lambdas[2]*feat_l_running ) / dataset_size}')
-            print(f'generator loss: {gen_l_running / dataset_size}')
+            print(f'discriminator loss: {disc_l_running / datasize}')
+            print(f'image loss: {(lambdas[1]*img_l_running )/ datasize}')
+            print(f'adversarial loss: {(lambdas[0]*adv_l_running )/ datasize}')
+            print(f'feature loss: {(lambdas[2]*feat_l_running ) / datasize}')
+            print(f'generator loss: {gen_l_running / datasize}')
 
-        if display_images:
-            fig, ax = plt.subplots(2,1, figsize=(10,10))
+        if display_images or acc:
+            num_graphs = 1 + display_images + acc
+            fig, ax = plt.subplots(num_graphs,1, figsize=(10,num_graphs*5))
             fig.set_facecolor('white')
 
-            with torch.no_grad():
-                if not static_enc:
-                    epoch_latents = norm_func_latent(enc(norm_func_img(epoch_imgs, mean, std))).view(epoch_imgs.shape[0],input_channels,1,1)
-                gen_xs = (gen(epoch_latents)+1)/2
+            loss_idx = display_images + acc
+            acc_idx = int(display_images)
 
-            image_grid = tensor_to_image(make_grid(gen_xs, nrow=int(gen_xs.shape[0]/4)))
-            ax[0].imshow(image_grid)
+            if display_images:
+                with torch.no_grad():
+                    if not static_enc:
+                        epoch_latents = norm_func_latent(enc(norm_func_img(epoch_imgs, mean, std))).view(epoch_imgs.shape[0],input_channels,1,1)
+                    gen_xs = (gen(epoch_latents)+1)/2
 
-            ax[1].plot(disc_losses, label='discriminator loss')
-            ax[1].plot(lambdas[1]*np.array(img_losses), label='image space loss')
-            ax[1].plot(lambdas[0]*np.array(adv_losses), label='adversarial loss')
-            ax[1].plot(lambdas[2]*np.array(feat_losses), label='feature space loss')
-            ax[1].plot(gen_losses, label='generator loss')
-            ax[1].legend()
-            ax[1].grid()
+                image_grid = tensor_to_image(make_grid(gen_xs, nrow=int(gen_xs.shape[0]/4)))
+                ax[0].imshow(image_grid)
+
+            if acc:
+                print(f'test accuracy: {test_acc[-1]}')
+                print(f'validation accuracy: {val_acc[-1]}')
+                ax[acc_idx].plot(test_acc, label='test accurcacy')
+                ax[acc_idx].plot(val_acc, label='validation accurcacy')
+                ax[acc_idx].legend()
+                ax[acc_idx].grid()
+
+            ax[loss_idx].plot(disc_losses, label='discriminator loss')
+            ax[loss_idx].plot(lambdas[1]*np.array(img_losses), label='image space loss')
+            ax[loss_idx].plot(lambdas[0]*np.array(adv_losses), label='adversarial loss')
+            ax[loss_idx].plot(lambdas[2]*np.array(feat_losses), label='feature space loss')
+            ax[loss_idx].plot(gen_losses, label='generator loss')
+            ax[loss_idx].legend()
+            ax[loss_idx].grid()
     
         else:
             fig, ax = plt.subplots(1,1, figsize=(10,5))
@@ -228,5 +295,7 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
-        
+    
+    if acc:
+        return gen, enc, [disc_losses, img_losses, adv_losses, feat_losses, gen_losses, test_acc, val_acc]
     return gen, enc, [disc_losses, img_losses, adv_losses, feat_losses, gen_losses]

@@ -268,3 +268,23 @@ def dataset_to_dataloaders(dataset_config: DatasetConfig) -> t.Tuple[t.Dict[str,
     dataloaders = get_dataloaders(
         train_dataset, val_dataset, test_dataset, batch_size, num_workers)
     return dataloaders, dataset_sizes
+
+def dataset_to_dataloaders_2(dataset_config: DatasetConfig) -> t.Tuple[t.Dict[str, DataLoader], t.Dict[str, int]]:
+    """Create dataloaders from dataset images.\n
+       Returns: training_dataset, validation_dataset, testing_dataset"""
+    #FIXME currently assumes all given paths are split with '/'
+    dataset = ImageFolder(dataset_config['image_folder_path'])
+    training_ratio = dataset_config['training_data_ratio']
+    validation_ratio = dataset_config['validation_data_ratio']
+    train_data, val_data, test_data, dataset_sizes = split_dataset_stratified(
+        dataset, training_ratio, validation_ratio)
+    print('dataset sizes: {}'.format(dataset_sizes))
+    transforms = dataset_config['data_augmentations']
+    batch_size = dataset_config['batch_size']
+    num_workers = dataset_config['num_workers']
+    train_dataset, val_dataset, test_dataset = apply_transforms(
+        transforms, train_data+test_data, val_data, test_data, 
+        dataset_config['average_image_shape'],  dataset_config['mean'], dataset_config['std'])
+    dataloaders = get_dataloaders(
+        train_dataset, val_dataset, test_dataset, batch_size, num_workers)
+    return dataloaders, dataset_sizes
