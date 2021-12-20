@@ -23,10 +23,10 @@ from .utils.deepdream_utility import *
 def dream_process(model : torch.nn.Module, config : Config, 
                     img : t.Optional[npt.NDArray[np.float32]] = None, render=None) -> t.List[npt.NDArray[np.uint8]]:
     input_img = get_start_image(config, img)
-    output_images = dreamspace(input_img, model, config = config, render=render)
+    output_images, codes = dreamspace(input_img, model, config = config, render=render)
     save_output(output_images, config)
     
-    return output_images
+    return output_images, codes
 
 def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module, 
                     config : Config, render=None) -> t.List[npt.NDArray[np.uint8]]:
@@ -44,7 +44,7 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
         for i in range(iters[level]):
             h_shift, w_shift = np.random.randint(-config.dream['shift_size'], config.dream['shift_size'] + 1, 2)
             shifted_tensor = random_shift(scaled_tensor, h_shift, w_shift, requires_grad = True)
-            dreamt_tensor = dream_ascent(shifted_tensor, model, level, i, iters[level],  config=config, render=render)
+            dreamt_tensor, codes = dream_ascent(shifted_tensor, model, level, i, iters[level],  config=config, render=render)
             deshifted_tensor = random_shift(dreamt_tensor, h_shift,
                                              w_shift, undo=True, requires_grad = True)
 
@@ -58,7 +58,7 @@ def dreamspace(img : npt.NDArray[np.float32], model : torch.nn.Module,
                 output_images.append(output_image)
             scaled_tensor = deshifted_tensor
         scaled_tensor = image_scale.get_level(img, level)
-    return output_images
+    return output_images, codes
 
 def calculate_loss(tensor : torch.Tensor, loss_type : str = ""):
     if loss_type == 'norm':
@@ -148,7 +148,7 @@ def dream_ascent(tensor : torch.Tensor, model : torch.nn.Module, level : int,  i
     else:
         image_min, image_max = torch.tensor(-1), torch.tensor(1)
     tensor.data = torch.clip(tensor, image_min, image_max)
-    return tensor
+    return tensor, x.detach()
 
 
 def gradient_smoothing(tensor: torch.Tensor, kernel_size: t.Union[int, t.List[int]], 
@@ -255,18 +255,21 @@ class CascadeGaussianSmoothing(nn.Module):
 
 
 
-def dream_process_gen(model : torch.nn.Module, config : Config, 
+def dream_process_gen(model : torch.nn.Module, config : Config, start_latent,
                     render=None) -> t.List[npt.NDArray[np.uint8]]:
-    input_img = torch.normal(0,1,(1,100,1,1))
-    output_images, resp = dreamspace_gen(input_img, model, config = config, render=render)
+    lat = np.load(start_latent)
+    input_img = torch.tensor(lat, dtype=torch.float).reshape(1,-1,1,1) + torch.normal(0,1,(1,lat.shape[0],1,1))
+    output_images, resp, codes = dreamspace_gen(input_img, model, config = config, render=render)
     
     
-    return output_images, resp
+    return output_images, resp, codes
 
 
 def dreamspace_gen(img : npt.NDArray[np.float32], model : torch.nn.Module, 
                     config : Config, render=None) -> t.List[npt.NDArray[np.uint8]]:
     output_images = []
+    codes = []
+    codes.append(img.detach().cpu().numpy())
 
     iters = get_num_iters(config.dream)
 
@@ -287,8 +290,9 @@ def dreamspace_gen(img : npt.NDArray[np.float32], model : torch.nn.Module,
 
             if (i % config.dream['save_interval']) == 0:
                 output_images.append(output_image)
+            codes.append(dreamt_tensor.detach().cpu().numpy())
 
-    return output_images, resp.cpu().detach().numpy()
+    return output_images, resp.cpu().detach().numpy(), codes
 
 def dream_ascent_gen(tensor : torch.Tensor, model : torch.nn.Module, level : int,  iter : int, num_iters : int,
                 config : Config, render=None) -> torch.Tensor:

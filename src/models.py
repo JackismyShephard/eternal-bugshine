@@ -204,11 +204,11 @@ class G_block(nn.Module):
         return self.activation(self.batch_norm(self.conv2d_trans(X)))
 
 class GenModel(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, inchannels):
         super().__init__()
         n_G = 64
         self.net_G = nn.Sequential(
-            G_block(in_channels=100, out_channels=n_G*16, kernel_size=(7,14),
+            G_block(in_channels=inchannels, out_channels=n_G*16, kernel_size=(7,14),
                     strides=1, padding=0),                  # Output: (64 * 16, 7, 14)
             G_block(in_channels=n_G*16, out_channels=n_G*8), # Output: (64 * 8, 14, 28)
             G_block(in_channels=n_G*8, out_channels=n_G*4), # Output: (64 * 4, 28, 56)
@@ -217,17 +217,17 @@ class GenModel(torch.nn.Module):
             nn.ConvTranspose2d(in_channels=n_G, out_channels=3,
                             kernel_size=4, stride=2, padding=1, bias=False),
             nn.Tanh())  # Output: (3, 224, 448)
-        self.net_G.load_state_dict(torch.load('./Gen_01'))
 
     def forward(self, X):
         res = self.net_G(X)
         res = (res + 1 ) / 2
-        return TF.gaussian_blur(res, 3, 1)
+        return res
+        #return TF.gaussian_blur(res, 3, 1)
 
 class HookedModel_gen(torch.nn.Module):
     """Augments a pytorch model with the ability to return activations from specific modules in the model.
        Intended to be used in the following way: 'retval, activations = model(input, list_of_targets)'"""
-    def __init__(self, model: torch.nn.Module, mean, std) -> None:
+    def __init__(self, model: torch.nn.Module, mean, std, gen, inchannels=1000) -> None:
         super().__init__()
         self.model = copy.deepcopy(model)
         self._hooks: t.Dict[str, t.Any] = {}
@@ -245,7 +245,9 @@ class HookedModel_gen(torch.nn.Module):
         std_tensor[2,:] = s[2] 
         self.mean = mean_tensor.to('cuda')
         self.std = std_tensor.to('cuda')
-        self.gen = GenModel().to('cuda')
+        self.gen = GenModel(inchannels)
+        self.gen.net_G.load_state_dict(torch.load(gen))
+        self.gen = self.gen.to('cuda')
 
     def _hook_into(self, name: str) -> t.Callable[[torch.nn.Module, torch.Tensor, torch.Tensor], None]:
         """Returns a hook function meant to be registered with register_forward_hook"""
