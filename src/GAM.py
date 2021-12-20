@@ -31,10 +31,8 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
 
     # Setup normalization 
     in_channels = input_channels
-
     mean = torch.tensor([0.8442649, 0.82529384, 0.82333773]).reshape(3,1,1).to(device)
     std = torch.tensor([0.28980458, 0.32252666, 0.3240354]).reshape(3,1,1).to(device)
-
 
     # Setup optimizers
     optim_g = Adam(gen.parameters(),  lr=lrs[0], betas=(lrs[1], lrs[2]))
@@ -47,6 +45,7 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
     # Loss function for gen and disc
     loss_f = torch.nn.BCEWithLogitsLoss(reduction='sum')
 
+    # Calculating images takes up precious vram
     if display_images:
 
         # Setup latent codes to generate images to show at each epoch
@@ -54,14 +53,18 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
         epoch_imgs, epoch_latents = next(iterable)
         epoch_imgs = epoch_imgs.to(device)
 
+        # If the encoder is not static we need to calculate a new latent code at each epoch
         if static_enc:
+
+            # no need to calculate the autograd and use vram for it
             with torch.no_grad():
                 if enc is not None:
                     epoch_latents = norm_func_latent(enc(norm_func_img(epoch_imgs, mean, std)).detach())
                 else :
-                    epoch_latents = F.one_hot(epoch_latents, in_channels).float().to(device)
+                    epoch_latents = F.one_hot(epoch_latents, in_channels).float().to(device)        
             epoch_latents.data = epoch_latents.reshape(-1, in_channels, 1,1).data
 
+    # Setup mixed precision 
     scaler = torch.cuda.amp.GradScaler()
 
     for epoch in range(num_epochs):
@@ -78,8 +81,12 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
 
             # Setup autograd for discriminator
             optim_d.zero_grad()
+
+            # Calculate autograd and loss with mixed precision
             with torch.cuda.amp.autocast():
-                if static_enc:
+
+                # Same as calculating display latent codes
+                if static_enc:     
                     with torch.no_grad():
                         if enc is not None:
                             y = norm_func_latent(enc(norm_func_img(X, mean, std)))
@@ -88,43 +95,44 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
                         if latent_noise is not None:
                             y.data = y.data + torch.normal(latent_noise[0],latent_noise[0], y.shape).to(device)
                         y.data = y.reshape((-1, in_channels, 1, 1)).data
+
+                # If the encoder needs to be trained we need autograd 
                 else:
                     y = norm_func_latent(enc(norm_func_img(X, mean, std))).view(X.shape[0],input_channels,1,1)
+
+                # Calculate discriminator loss
 
                 gen_x = gen(y)
 
                 disc_real = disc(X)
+                # Detach to stop autograd at this value
                 disc_fake = disc(gen_x.detach())
 
                 ones = torch.ones((X.shape[0],), device=X.device)
                 zeros = torch.zeros((X.shape[0],), device=X.device)
-
-                # Update discriminator
 
                 loss_adv = loss_f(disc_fake,ones.reshape(disc_fake.shape))
                 loss_disc = (loss_f(disc_real, ones.reshape(disc_real.shape)) + loss_f(disc_fake, zeros.reshape(disc_fake.shape)))/2
 
             # Only update if ratio is not to small
             if loss_disc / loss_adv > 0.1:
+                # use the mixed precission scaler for the actual update
                 scaler.scale(loss_disc).backward()
-
                 scaler.step(optim_d)
                 scaler.update()
 
 
-            # calculate autograd for generator
+            # Setup autograd for generator
             optim_g.zero_grad()
 
-            
             if not static_enc:
                 optim_e.zero_grad()
 
+            # Calculate autograd and loss with mixed precision
             with torch.cuda.amp.autocast():
                 disc_fake = disc(gen_x)
                 comp_real = comp(norm_func_img(X,mean,std))
-                comp_fake = comp(norm_func_img(gen_x,mean,std))
-
-                # Update generator           
+                comp_fake = comp(norm_func_img(gen_x,mean,std))        
 
                 loss_img = ((gen_x - X)**2).sum()
 
@@ -136,15 +144,18 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
                             lambdas[1] * loss_img + \
                             lambdas[2] * loss_feat 
 
+            # Update generator and encoder
             if static_enc:
                 scaler.scale(loss_gen).backward()
-
                 scaler.step(optim_g)
                 scaler.update()
             else:
+                # retain_graph is need if both needs to be trained
                 scaler.scale(loss_gen).backward(retain_graph=True)
                 scaler.step(optim_g)
                 scaler.update()
+
+                # use the same loss for both the generator and the encoder
                 scaler.step(optim_e)
                 scaler.update()
 
@@ -180,10 +191,12 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloader, lrs = 
         if display_images:
             fig, ax = plt.subplots(2,1, figsize=(10,10))
             fig.set_facecolor('white')
+
             with torch.no_grad():
                 if not static_enc:
                     epoch_latents = norm_func_latent(enc(norm_func_img(epoch_imgs, mean, std))).view(epoch_imgs.shape[0],input_channels,1,1)
                 gen_xs = (gen(epoch_latents)+1)/2
+
             image_grid = tensor_to_image(make_grid(gen_xs, nrow=int(gen_xs.shape[0]/4)))
             ax[0].imshow(image_grid)
 
