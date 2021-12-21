@@ -499,3 +499,32 @@ class Config():
         self.mean = dream['mean']
         self.std = dream['std']
         self.device = model['device']
+
+# ----------- GAMGAN -----------
+
+GAMfig = {
+    'name':   'name'  ,
+    'generator' :  None,
+    'discriminator' : None,
+    'comparator' : None,
+    'encoder' : None,
+
+    'static' : False,
+    'latent_dim': None,
+    'latent_noise': None,
+
+    'num_epochs' : 200,
+    'dataloaders' : None,
+    'datasizes' : None,
+    'split_data' : True,
+    'lrs' : [ 0.0002, 0.9, 0.999],
+    'lambdas' : [100, 2e-6, 0.01],
+    'lr_decay_gamma' : 0.995,
+
+    'display_images': True,
+    'calc_acc' : True,
+    'print_loss' : True,
+
+    'comp_layer' : None,
+    'latent_aug_name' : None 
+}

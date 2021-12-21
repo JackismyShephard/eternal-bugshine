@@ -4,7 +4,10 @@ import numpy as np
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import IPython.display as display
+from pathlib import Path
+import json
 from torchvision.utils import make_grid
+import os
 display.set_matplotlib_formats('svg')
 
 from .utils.visual import show_img, tensor_to_image
@@ -16,13 +19,51 @@ device = "cuda:0"
 
 
 import sys
-def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datasizes, lrs = [ 0.0002, 0.9, 0.999],  
-            lambdas = [100, 2e-6, 0.01], num_epochs=200, enc = None, latent_noise = None, static_enc = True, display_images = True, acc = True, print_loss = True, input_channels = 197, split_data = True):
+
+def norm_img(img, mean, std):
+    res = (img + 1) / 2
+    return (res - mean) / std
+
+def latent_std(y):
+    return y
+
+def GAM_fit_save(config):
+    gen, enc, stats = GAM_fit(config)
+    name = config['name']
+    folder_path = './output/GANs/' + name + '/'
+    Path(folder_path).mkdir(parents=True, exist_ok=True)
+    #if not os.path.exists(folder_path):
+    #    os.mkdir(folder_path)
+    simple_config = {
+        'name' : config['name'],
+        'comp_layer' : config['comp_layer'], 
+        'static' : config['static'],
+        'latent_dim': config['latent_dim'],
+        'latent_noise': config['latent_noise'],
+        'num_epochs' : config['num_epochs'],
+        'lrs' : config['lrs'],
+        'lambdas' : config['lambdas'],
+        'lr_decay_gamma' : config['lr_decay_gamma'],
+        'latent_aug_name' : config['latent_aug_name'] 
+    }
+    json_path = folder_path + name + '_config.json'
+    with open(json_path, 'w') as json_file:
+        json.dump(simple_config, indent = 4, fp = json_file)
+    torch.save(gen.state_dict(), folder_path + name + '_gen.pt')
+    torch.save(enc.state_dict(), folder_path + name + '_enc.pt')
+    np.save(folder_path + name + '_stats.npy', np.array(stats))
+    
+    
+    
+
+def GAM_fit(config):
     """Training for GAM setup, assumes models are on the gpu"""
     # Calculate execution time
     since = time.time()
 
-    if split_data:
+    dataloaders = config['dataloaders']
+    datasizes = config['datasizes']
+    if config['split_data']:
         # Split datasets
         dataloader = dataloaders['train']
         dataloader_val = dataloaders['val']
@@ -35,8 +76,20 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datas
         dataloader = dataloaders
         datasize = datasizes
 
-    lr_gamma = 0.995
+    gen = config['generator']
+    disc = config['discriminator']
+    enc = config['encoder']
+    comp = config['comparator']
 
+    if config['latent_aug_name'] is None:
+        latent_aug = lambda x : x
+    else:
+        latent_aug = config['latent_aug_name']
+
+
+    lambdas = config['lambdas']
+    num_epochs = config['num_epochs']
+    
     # Setup statistics
     disc_losses = []
     img_losses = []
@@ -47,28 +100,28 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datas
     test_acc = []
 
     # Setup normalization 
-    in_channels = input_channels
+    in_channels = config['latent_dim']
     mean = torch.tensor([0.8442649, 0.82529384, 0.82333773]).reshape(3,1,1).to(device)
     std = torch.tensor([0.28980458, 0.32252666, 0.3240354]).reshape(3,1,1).to(device)
 
     # Setup optimizers
-    optim_g = Adam(gen.parameters(),  lr=lrs[0], betas=(lrs[1], lrs[2]))
-    optim_d = Adam(disc.parameters(),  lr=lrs[0], betas=(lrs[1], lrs[2]))
+    optim_g = Adam(gen.parameters(),  lr=config['lrs'][0], betas=(config['lrs'][1], config['lrs'][2]))
+    optim_d = Adam(disc.parameters(),  lr=config['lrs'][0], betas=(config['lrs'][1], config['lrs'][2]))
 
-    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(optim_g, gamma=lr_gamma)
-    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optim_d, gamma=lr_gamma)
+    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(optim_g, gamma=config['lr_decay_gamma'])
+    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optim_d, gamma=config['lr_decay_gamma'])
 
     # If the encoder also has to be trained
-    if not static_enc:
-        optim_e = Adam(enc.parameters(),  lr=lrs[0], betas=(lrs[1], lrs[2]))
-        scheduler_e = torch.optim.lr_scheduler.ExponentialLR(optim_e, gamma=lr_gamma)
+    if not config['static']:
+        optim_e = Adam(enc.parameters(),  lr=config['lrs'][0], betas=(config['lrs'][1], config['lrs'][2]))
+        scheduler_e = torch.optim.lr_scheduler.ExponentialLR(optim_e, gamma=config['lr_decay_gamma'])
 
     # Loss function for gen and disc
     loss_f = torch.nn.BCEWithLogitsLoss(reduction='sum')
 
 
     # Calculating images takes up precious vram
-    if display_images:
+    if config['display_images']:
 
         # Setup latent codes to generate images to show at each epoch
         iterable = iter(dataloader)
@@ -76,15 +129,11 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datas
         epoch_imgs = epoch_imgs.to(device)
 
         # If the encoder is not static we need to calculate a new latent code at each epoch
-        if static_enc:
+        if config['static']:
 
             # no need to calculate the autograd and use vram for it
             with torch.no_grad():
-                if enc is not None:
-                    epoch_latents = norm_func_latent(enc(norm_func_img(epoch_imgs, mean, std)).detach())
-                else :
-                    epoch_latents = F.one_hot(epoch_latents, in_channels).float().to(device)        
-            epoch_latents.data = epoch_latents.reshape(-1, in_channels, 1,1).data
+                epoch_latents = latent_aug(enc(norm_img(epoch_imgs, mean, std)).detach()).reshape(-1, in_channels, 1,1)
 
     # Setup mixed precision 
     scaler = torch.cuda.amp.GradScaler()
@@ -108,19 +157,16 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datas
             with torch.cuda.amp.autocast():
 
                 # Same as calculating display latent codes
-                if static_enc:     
+                if config['static']:     
                     with torch.no_grad():
-                        if enc is not None:
-                            y = norm_func_latent(enc(norm_func_img(X, mean, std)))
-                        else :
-                            y = F.one_hot(y, in_channels).float().to(device)
-                        if latent_noise is not None:
-                            y.data = y.data + torch.normal(latent_noise[0],latent_noise[1], y.shape).to(device)
+                        y = latent_aug(enc(norm_img(X, mean, std)))
+                        if config['latent_noise'] is not None:
+                            y.data = y.data + torch.normal(config['latent_noise'][0],config['latent_noise'][1], y.shape).to(device)
                         y.data = y.reshape((-1, in_channels, 1, 1)).data
 
                 # If the encoder needs to be trained we need autograd 
                 else:
-                    y = norm_func_latent(enc(norm_func_img(X, mean, std))).view(X.shape[0],input_channels,1,1)
+                    y = latent_aug(enc(norm_img(X, mean, std))).view(X.shape[0],in_channels,1,1)
 
                 # Calculate discriminator loss
 
@@ -147,14 +193,14 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datas
             # Setup autograd for generator
             optim_g.zero_grad()
 
-            if not static_enc:
+            if not config['static']:
                 optim_e.zero_grad()
 
             # Calculate autograd and loss with mixed precision
             with torch.cuda.amp.autocast():
                 disc_fake = disc(gen_x)
-                comp_real = comp(norm_func_img(X,mean,std))
-                comp_fake = comp(norm_func_img(gen_x,mean,std))        
+                comp_real = comp(norm_img(X,mean,std))
+                comp_fake = comp(norm_img(gen_x,mean,std))        
 
                 loss_img = ((gen_x - X)**2).sum()
 
@@ -167,7 +213,7 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datas
                             lambdas[2] * loss_feat 
 
             # Update generator and encoder
-            if static_enc:
+            if config['static']:
                 scaler.scale(loss_gen).backward()
                 scaler.step(optim_g)
                 scaler.update()
@@ -196,7 +242,7 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datas
         optim_g.zero_grad()
         scheduler_d.step()
         scheduler_g.step()
-        if not static_enc:
+        if not config['static']:
             scheduler_e.step()
             optim_e.zero_grad()
 
@@ -207,6 +253,10 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datas
         feat_losses.append(feat_l_running / datasize)
         gen_losses.append(gen_l_running / datasize)
 
+        display_images = config['display_images']
+        print_loss = config['print_loss']
+        acc = config['calc_acc']
+
         if acc:
             test_acc_temp = torch.tensor([0], device='cuda')
             val_acc_temp = torch.tensor([0], device='cuda')
@@ -215,16 +265,16 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datas
                 X = X.to('cuda')
                 y = y.to('cuda')
                 with torch.no_grad():
-                    lat = enc(X).view(X.shape[0],input_channels,1,1)
-                    res = comp._forward_impl(norm_func_img(gen(lat), mean, std),False)
+                    lat = enc(X).view(X.shape[0],in_channels,1,1)
+                    res = comp._forward_impl(norm_img(gen(lat), mean, std),False)
                     test_acc_temp += torch.sum(torch.argmax(res, 1) == y)
 
             for X, y in dataloader_val:
                 X = X.to('cuda')
                 y = y.to('cuda')
                 with torch.no_grad():
-                    lat = enc(X).view(X.shape[0],input_channels,1,1)
-                    res = comp._forward_impl(norm_func_img(gen(lat), mean, std),False)
+                    lat = enc(X).view(X.shape[0],in_channels,1,1)
+                    res = comp._forward_impl(norm_img(gen(lat), mean, std),False)
                     val_acc_temp += torch.sum(torch.argmax(res, 1) == y)
             test_acc.append(test_acc_temp.cpu().item()/datasize_test) 
             val_acc.append(val_acc_temp.cpu().item()/datasize_val) 
@@ -252,8 +302,8 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datas
 
             if display_images:
                 with torch.no_grad():
-                    if not static_enc:
-                        epoch_latents = norm_func_latent(enc(norm_func_img(epoch_imgs, mean, std))).view(epoch_imgs.shape[0],input_channels,1,1)
+                    if not config['static']:
+                        epoch_latents = latent_aug(enc(norm_img(epoch_imgs, mean, std))).view(epoch_imgs.shape[0],in_channels,1,1)
                     gen_xs = (gen(epoch_latents)+1)/2
 
                 image_grid = tensor_to_image(make_grid(gen_xs, nrow=int(gen_xs.shape[0]/4)))
