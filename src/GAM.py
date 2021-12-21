@@ -216,7 +216,9 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datas
                 y = y.to('cuda')
                 with torch.no_grad():
                     lat = enc(X).view(X.shape[0],input_channels,1,1)
-                    res = comp._forward_impl(norm_func_img((gen(lat)+1)/2, mean, std),False)
+                    res = comp._forward_impl(norm_func_img(gen(lat), mean, std),False)
+                    print(torch.argmax(res, 1), y)
+                    input('hhh')
                     test_acc_temp += torch.sum(torch.argmax(res, 1) == y)
 
             for X, y in dataloader_val:
@@ -224,7 +226,7 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datas
                 y = y.to('cuda')
                 with torch.no_grad():
                     lat = enc(X).view(X.shape[0],input_channels,1,1)
-                    res = comp._forward_impl(norm_func_img((gen(lat)+1)/2, mean, std),False)
+                    res = comp._forward_impl(norm_func_img(gen(lat), mean, std),False)
                     val_acc_temp += torch.sum(torch.argmax(res, 1) == y)
             test_acc.append(test_acc_temp.cpu().item()/datasize_test) 
             val_acc.append(val_acc_temp.cpu().item()/datasize_val) 
