@@ -217,8 +217,6 @@ def GAM_fit(gen, disc, comp, norm_func_img, norm_func_latent, dataloaders, datas
                 with torch.no_grad():
                     lat = enc(X).view(X.shape[0],input_channels,1,1)
                     res = comp._forward_impl(norm_func_img(gen(lat), mean, std),False)
-                    print(torch.argmax(res, 1), y)
-                    input('hhh')
                     test_acc_temp += torch.sum(torch.argmax(res, 1) == y)
 
             for X, y in dataloader_val:
