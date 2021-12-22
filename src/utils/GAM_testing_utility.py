@@ -141,7 +141,7 @@ def confusion_matrix(data_preds):
     classes = len(data_preds)
     ret = np.zeros((classes, classes))
     for i in range(classes):
-        if data_preds[i].shape[0] == 0:
+        if data_preds[i].shape[0] != 0:
             row = np.bincount(data_preds[i].astype(np.int64), minlength=classes)
             ret[i] = row / np.sum(row)
 
@@ -152,7 +152,7 @@ def acc_vs_model(acc, model_acc, augment=False):
         model_aug = model_acc - np.min(model_acc)
         model_aug = model_aug/np.max(model_aug)
         acc_aug = acc - np.min(acc)
-        acc_aug = acc / np.max(acc)
+        acc_aug = acc_aug / np.max(acc_aug)
     else:
         model_aug = model_acc
         acc_aug = acc

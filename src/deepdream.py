@@ -257,8 +257,8 @@ class CascadeGaussianSmoothing(nn.Module):
 
 def dream_process_gen(model : torch.nn.Module, config : Config, start_latent,
                     render=None) -> t.List[npt.NDArray[np.uint8]]:
-    lat = np.load(start_latent)
-    input_img = torch.tensor(lat, dtype=torch.float).reshape(1,-1,1,1) + torch.normal(0,1,(1,lat.shape[0],1,1))
+    lat = torch.tensor(np.load(start_latent))
+    input_img = torch.normal(lat[0],lat[1]).reshape(1,-1,1,1)
     output_images, resp, codes = dreamspace_gen(input_img, model, config = config, render=render)
     
     
@@ -284,7 +284,9 @@ def dreamspace_gen(img : npt.NDArray[np.float32], model : torch.nn.Module,
             dreamt_tensor, resp = dream_ascent_gen(scaled_tensor, model, level, i, iters[level],  config=config, render=render)
 
             current_img = model.gen(dreamt_tensor)
+
             output_image = (tensor_to_image(current_img)*255).astype(np.uint8)
+            
             if config.dream['show'] == True and i % config.dream['display_interval'] == 0:
                 render.update(output_image)
 
