@@ -232,19 +232,8 @@ class HookedModel_gen(torch.nn.Module):
         self.model = copy.deepcopy(model)
         self._hooks: t.Dict[str, t.Any] = {}
         self._activations: t.Dict[str, torch.Tensor] = {}   
-        m = torch.tensor(mean)
-        s = torch.tensor(std)
-        mean_tensor = torch.zeros(3,224,448)
-        std_tensor = torch.zeros(3,224,448)
-        mean_tensor[0,:] = m[0]   
-        mean_tensor[1,:] = m[1] 
-        mean_tensor[2,:] = m[2] 
-
-        std_tensor[0,:] = s[0]   
-        std_tensor[1,:] = s[1] 
-        std_tensor[2,:] = s[2] 
-        self.mean = mean_tensor.to('cuda')
-        self.std = std_tensor.to('cuda')
+        self.mean = torch.tensor(mean).reshape(3,1,1).to('cuda')
+        self.std = torch.tensor(std).reshape(3,1,1).to('cuda')
         self.gen = GenModel(inchannels)
         self.gen.net_G.load_state_dict(torch.load(gen))
         self.gen = self.gen.to('cuda')

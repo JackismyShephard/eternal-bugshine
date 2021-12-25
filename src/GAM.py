@@ -27,6 +27,11 @@ def norm_img(img, mean, std):
 def latent_std(y):
     return y
 
+def norm_soft(y):
+    num = torch.exp(y.reshape(-1,y.shape[1])*0.35)
+    denom = torch.sum(num, 1).reshape(-1,1)
+    return (num/denom).reshape(-1,y.shape[1],1,1)
+
 def GAM_fit_save(config):
     gen, enc, stats = GAM_fit(config)
     name = config['name']
@@ -50,7 +55,8 @@ def GAM_fit_save(config):
     with open(json_path, 'w') as json_file:
         json.dump(simple_config, indent = 4, fp = json_file)
     torch.save(gen.state_dict(), folder_path + name + '_gen.pt')
-    torch.save(enc.state_dict(), folder_path + name + '_enc.pt')
+    if not config['static']:
+        torch.save(enc.state_dict(), folder_path + name + '_enc.pt')
     np.save(folder_path + name + '_stats.npy', np.array(stats))
     
     
@@ -84,7 +90,7 @@ def GAM_fit(config):
     if config['latent_aug_name'] is None:
         latent_aug = lambda x : x
     else:
-        latent_aug = config['latent_aug_name']
+        latent_aug = norm_soft
 
 
     lambdas = config['lambdas']
