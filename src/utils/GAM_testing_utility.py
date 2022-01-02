@@ -61,7 +61,7 @@ def setup_nets(root_path, config):
     
     net_G = net_G.to('cuda')
     net_G.load_state_dict(torch.load(root_path + '_gen.pt'))
-    _ = net_G.eval()
+    #_ = net_G.eval()
 
     if config['static']:
         return net_G, model, model, dataloader
@@ -217,7 +217,7 @@ def show_class(data_latent, data_pred, class_nr, batch, gen):
             ax[1].set_title('Incorrect', c='r', fontsize=24)
     plt.tight_layout()
 
-def visual_insection(gen, enc, model, file_name=None):
+def visual_insection(gen, enc, model, aug_func, file_name=None):
 
     class_0_file = 'data/beetles/images/achenium_humile/_0189_0.jpg'
     class_21_file = 'data/beetles/images/emus_hirtus/_0486_5.jpg'
@@ -242,7 +242,7 @@ def visual_insection(gen, enc, model, file_name=None):
 
     tensors = torch.stack(tensor_list).to('cuda')
 
-    latent_code = enc(tensors)
+    latent_code = aug_func(enc(tensors))
 
     latent_code = latent_code.view(latent_code.shape[0],latent_code.shape[1],1,1 ).to('cuda')
 
