@@ -258,7 +258,7 @@ class CascadeGaussianSmoothing(nn.Module):
 def dream_process_gen(model : torch.nn.Module, config : Config, start_latent,
                     render=None) -> t.List[npt.NDArray[np.uint8]]:
     lat = torch.tensor(np.load(start_latent))
-    input_img = torch.normal(lat[0],lat[1]).reshape(1,-1,1,1)
+    input_img = torch.normal(lat[0],lat[1]).reshape(1,-1,1,1).type(torch.FloatTensor)
     output_images, resp, codes = dreamspace_gen(input_img, model, config = config, render=render)
     
     
