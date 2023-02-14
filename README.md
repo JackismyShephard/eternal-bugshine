@@ -1,6 +1,6 @@
 # eternal-bugshine
 
-This repository houses methods related to feature visualization in models trained on beetles.
+This repository houses methods related to feature visualization of models trained on beetles.
 
 ![](front_page/achenium_humile_0189_0_model_layers_layer3_4_num_iters_30_lr_0.1_smooth_coef_0_compressed.gif)
 
